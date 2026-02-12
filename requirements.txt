@@ -1,0 +1,31 @@
+# Invariant - Physics-Informed AI for Grid Optimization
+# Python 3.11+ required
+
+# Core ML
+torch>=2.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+
+# Data & APIs
+requests>=2.31.0
+python-dotenv>=1.0.0
+
+# Demo UI
+gradio>=4.0.0
+
+# Visualization
+matplotlib>=3.7.0
+plotly>=5.15.0
+
+# Notebooks
+jupyter>=1.0.0
+ipywidgets>=8.0.0
+
+# Development
+black>=23.0.0
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Type checking
+mypy>=1.5.0
