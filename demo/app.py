@@ -3,7 +3,16 @@ Invariant DLR Demo - Fixed Colors
 """
 
 import gradio as gr
-import torch
+try:
+    import torch
+except Exception as e:
+    raise ImportError(
+        "PyTorch is required to run the demo.\n"
+        "Install with: `pip install -r requirements.txt` or follow platform-specific instructions:\n"
+        "  - macOS (MPS): `pip install torch --index-url https://download.pytorch.org/whl/nightly/cpu`\n"
+        "  - CPU (Linux/macOS): `pip install torch --index-url https://download.pytorch.org/whl/cpu`\n"
+        "  - CUDA: see https://pytorch.org for the correct wheel for your CUDA version"
+    ) from e
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -41,7 +50,7 @@ def load_model():
 
 MODEL, PHYSICS, NORMALIZER = load_model()
 
-def predict_dlr(T_ambient, wind_speed, wind_angle, solar_irradiance, current, max_temp=75.0):
+def predict_dlr(T_ambient, wind_speed, wind_angle, solar_irradiance, current, max_temp=75.0, safety_margin=0.0):
     x = np.array([[T_ambient, wind_speed, wind_angle, solar_irradiance, current, PHYSICS.R_ref.item()]])
     x_norm = NORMALIZER.transform(x)
     x_tensor = torch.tensor(x_norm, dtype=torch.float32, device=DEVICE)
@@ -51,6 +60,10 @@ def predict_dlr(T_ambient, wind_speed, wind_angle, solar_irradiance, current, ma
     
     T_conductor = pred_temp.item()
     
+    # Apply safety margin
+    safe_temp = T_conductor + safety_margin
+    safe_rating = pred_rating.item() * (T_conductor / safe_temp) ** 0.5 if safety_margin > 0 else pred_rating.item()
+    
     T_amb_t = torch.tensor([T_ambient], dtype=torch.float32, device=DEVICE)
     wind_t = torch.tensor([wind_speed], dtype=torch.float32, device=DEVICE)
     angle_t = torch.tensor([wind_angle], dtype=torch.float32, device=DEVICE)
@@ -59,7 +72,7 @@ def predict_dlr(T_ambient, wind_speed, wind_angle, solar_irradiance, current, ma
     
     physics_temp = PHYSICS.steady_state_temperature(current_t, T_amb_t, wind_t, solar_t, angle_t).item()
     physics_rating = PHYSICS.ampacity(max_temp, T_amb_t, wind_t, solar_t, angle_t).item()
-    residual = PHYSICS.heat_balance_residual(current_t, torch.tensor([T_conductor], device=DEVICE), T_amb_t, wind_t, solar_t, angle_t).item()
+    residual = PHYSICS.heat_balance_residual(current_t, torch.tensor([safe_temp], device=DEVICE), T_amb_t, wind_t, solar_t, angle_t).item()
     
     static_rating = PHYSICS.ampacity(max_temp, torch.tensor([35.0], device=DEVICE), torch.tensor([0.61], device=DEVICE), torch.tensor([1000.0], device=DEVICE)).item()
     capacity_gain = ((physics_rating - static_rating) / static_rating) * 100
@@ -115,7 +128,7 @@ def predict_dlr(T_ambient, wind_speed, wind_angle, solar_irradiance, current, ma
     
     # Status indicators
     physics_status = "✅ Compliant" if abs(residual) < 10 else "⚠️ Review" if abs(residual) < 30 else "❌ Violation"
-    temp_status = "🟢 Safe" if T_conductor < max_temp * 0.9 else "🟡 Caution" if T_conductor < max_temp else "🔴 Critical"
+    temp_status = "🟢 Safe" if safe_temp < max_temp * 0.9 else "🟡 Caution" if safe_temp < max_temp else "🔴 Critical"
     gain_status = "🚀" if capacity_gain > 30 else "📈" if capacity_gain > 10 else "➡️"
     
     summary = f"""
@@ -123,9 +136,9 @@ def predict_dlr(T_ambient, wind_speed, wind_angle, solar_irradiance, current, ma
 
 | Metric | Value | Status |
 |:-------|------:|:-------|
-| **Dynamic Rating** | **{physics_rating:.0f} A** | {gain_status} {'+' if capacity_gain > 0 else ''}{capacity_gain:.1f}% vs static |
+| **Dynamic Rating** | **{safe_rating:.0f} A** | {gain_status} {'+' if capacity_gain > 0 else ''}{capacity_gain:.1f}% vs static |
 | **Static Rating** | {static_rating:.0f} A | Baseline |
-| **Conductor Temp** | {physics_temp:.1f}°C | {temp_status} |
+| **Conductor Temp** | {safe_temp:.1f}°C | {temp_status} |
 | **Physics Residual** | {abs(residual):.2f} W/m | {physics_status} |
 
 ---
@@ -221,6 +234,7 @@ Enter real-time weather and load conditions. Our AI predicts capacity while resp
             gr.Markdown("### ⚡ Line Conditions")
             current = gr.Slider(100, 1500, 800, step=50, label="Current Load (A)")
             max_temp = gr.Slider(50, 100, 75, step=5, label="Max Conductor Temp (°C)", info="Safety limit")
+            safety_margin = gr.Slider(0, 15, 0, step=1, label="Safety Margin (°C)", info="Add buffer to temperature for extra conservatism")
             
             predict_btn = gr.Button("🔮 Calculate Dynamic Rating", variant="primary", size="lg")
         
@@ -231,12 +245,12 @@ Enter real-time weather and load conditions. Our AI predicts capacity while resp
     gr.Markdown("### 📈 Sensitivity Analysis")
     sensitivity = gr.Plot()
     
-    predict_btn.click(predict_dlr, [T_ambient, wind_speed, wind_angle, solar_irradiance, current, max_temp], [output_text, output_plot])
+    predict_btn.click(predict_dlr, [T_ambient, wind_speed, wind_angle, solar_irradiance, current, max_temp, safety_margin], [output_text, output_plot])
     
     for inp in [T_ambient, wind_speed, solar_irradiance, current]:
         inp.change(sensitivity_plot, [T_ambient, wind_speed, solar_irradiance, current], sensitivity)
     
-    demo.load(predict_dlr, [T_ambient, wind_speed, wind_angle, solar_irradiance, current, max_temp], [output_text, output_plot])
+    demo.load(predict_dlr, [T_ambient, wind_speed, wind_angle, solar_irradiance, current, max_temp, safety_margin], [output_text, output_plot])
     demo.load(sensitivity_plot, [T_ambient, wind_speed, solar_irradiance, current], sensitivity)
     
     gr.Markdown("""

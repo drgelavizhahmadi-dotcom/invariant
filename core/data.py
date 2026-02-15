@@ -36,6 +36,10 @@ class DataConfig:
     # Wind speed range (m/s)
     wind_speed_min: float = 0.3
     wind_speed_max: float = 18.0
+
+    # Fraction of synthetic samples forced into the extreme low-wind bin (< 1 m/s)
+    # (increase sampling of calm conditions for better low-wind training)
+    low_wind_fraction: float = 0.35  # 30-40% as requested
     
     # Wind angle range (degrees from perpendicular)
     wind_angle_min: float = 0.0
@@ -165,6 +169,14 @@ class SyntheticDLRDataset(Dataset):
         # Wind: log-normal distribution (most days have light wind)
         wind_raw = np.random.lognormal(mean=1.0, sigma=0.8, size=n)
         self.wind_speed = np.clip(wind_raw, cfg.wind_speed_min, cfg.wind_speed_max)
+
+        # Inject additional extreme low-wind cases to force model learning
+        # of conservative behaviour in calm conditions (per user request).
+        n_low = int(n * cfg.low_wind_fraction)
+        if n_low > 0:
+            low_idx = np.random.choice(n, size=n_low, replace=False)
+            # Replace with uniform samples in the low range [min, 1.0 m/s]
+            self.wind_speed[low_idx] = np.random.uniform(cfg.wind_speed_min, 1.0, size=n_low)
         
         # Wind angle: uniform
         self.wind_angle = np.random.uniform(cfg.wind_angle_min, cfg.wind_angle_max, n)
@@ -307,13 +319,298 @@ class CollateWithRaw:
         return x, y
 
 
+class RealDLRDataset(Dataset):
+    """
+    Real dataset for DLR fine-tuning
+    
+    Loads physics-ground-truth data from CSV (generated from real weather).
+    """
+    
+    def __init__(
+        self,
+        csv_path: str = "data/real_dlr_data_berlin_2023_2025.csv",
+        physics: Optional[IEEE738HeatBalance] = None,
+    ):
+        """
+        Load real DLR dataset from CSV
+        
+        Args:
+            csv_path: Path to CSV file with real data
+            physics: IEEE738HeatBalance instance (for R_ref)
+        """
+        self.physics = physics or IEEE738HeatBalance()
+        
+        # Load data
+        df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
+        
+        # Extract inputs and targets
+        self.T_ambient = df['T_ambient'].values
+        self.wind_speed = df['wind_speed'].values
+        self.wind_angle = df['wind_angle'].values
+        self.solar_irradiance = df['solar_irradiance'].values
+        self.current = df['current'].values
+        self.T_conductor = df['true_temp'].values
+        self.ampacity = df['true_ampacity'].values
+        
+        self.n_samples = len(df)
+        
+        # Setup normalizer (same as synthetic for compatibility)
+        self.normalizer = InputNormalizer()
+        raw_inputs = np.column_stack([
+            self.T_ambient, self.wind_speed, self.wind_angle,
+            self.solar_irradiance, self.current,
+            np.full(self.n_samples, self.physics.R_ref.item())
+        ])
+        self.normalizer.fit(raw_inputs)
+    
+    def __len__(self) -> int:
+        return self.n_samples
+    
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get normalized input and target for training
+        
+        Returns:
+            x: Normalized input features [6]
+            y: Targets [temperature, ampacity]
+        """
+        # Build input vector
+        x = np.array([
+            self.T_ambient[idx],
+            self.wind_speed[idx],
+            self.wind_angle[idx],
+            self.solar_irradiance[idx],
+            self.current[idx],
+            self.physics.R_ref.item(),
+        ])
+        
+        # Normalize
+        x_norm = self.normalizer.transform(x)
+        
+        # Targets
+        y = np.array([
+            self.T_conductor[idx],
+            self.ampacity[idx],
+        ])
+        
+        return (
+            torch.tensor(x_norm, dtype=torch.float32),
+            torch.tensor(y, dtype=torch.float32),
+        )
+    
+    def get_raw_inputs(self, idx: int) -> Dict[str, float]:
+        """Get unnormalized inputs (for physics calculations)"""
+        return {
+            'T_ambient': self.T_ambient[idx],
+            'wind_speed': self.wind_speed[idx],
+            'wind_angle': self.wind_angle[idx],
+            'solar_irradiance': self.solar_irradiance[idx],
+            'current': self.current[idx],
+        }
+
+
+class VietnamDataset(Dataset):
+    """
+    Real Vietnam 220kV transmission line dataset
+    
+    Loads measured weather conditions and computed ampacity from Vietnam.
+    Uses fixed current assumption for model compatibility.
+    """
+    
+    def __init__(
+        self,
+        csv_path: str = "data/mendeley/vietnam_220kv.csv",
+        physics: Optional[IEEE738HeatBalance] = None,
+        assumed_current: float = 1000.0,  # A - assumed for model compatibility
+    ):
+        """
+        Load Vietnam transmission line dataset
+        
+        Args:
+            csv_path: Path to Vietnam dataset CSV
+            physics: IEEE738HeatBalance instance (for R_ref)
+            assumed_current: Assumed current in A (since not in dataset)
+        """
+        self.physics = physics or IEEE738HeatBalance()
+        self.assumed_current = assumed_current
+        
+        # Load data
+        df = pd.read_csv(csv_path)
+        
+        # Extract time-based features
+        self._hour = pd.to_datetime(df['time']).dt.hour
+        
+        # Extract inputs and targets
+        # Note: temp is in °C, Wind1 in m/s, WinDir in degrees, GHI in W/m², Ampacity in A
+        self.T_ambient = df['temp'].values
+        self.wind_speed = df['Wind1'].values
+        self.wind_angle = df['WinDir'].values  # degrees
+        self.solar_irradiance = df['GHI'].values
+        self.current = np.full(len(df), self.assumed_current)  # fixed current
+        self.ampacity = df['Ampacity'].values  # ground truth ampacity
+        
+        # For temperature, we don't have ground truth, so we'll use physics approximation
+        # Fast approximation: T_conductor ≈ T_ambient + (I²R) / h, h ≈ 15 W/m²K
+        R = self.physics.R_ref.item()
+        h_approx = 15.0  # W/m²K approximate convective heat transfer
+        joule_heating = self.current ** 2 * R  # W/m
+        self.T_conductor = self.T_ambient + joule_heating / h_approx
+        
+        self.n_samples = len(df)
+        
+        # Setup normalizer (fit on this data)
+        self.normalizer = InputNormalizer()
+        raw_inputs = np.column_stack([
+            self.T_ambient, self.wind_speed, self.wind_angle,
+            self.solar_irradiance, self.current,
+            np.full(self.n_samples, self.physics.R_ref.item())
+        ])
+        self.normalizer.fit(raw_inputs)
+    
+    @property
+    def hour(self):
+        return self._hour
+    
+    def __len__(self) -> int:
+        return self.n_samples
+    
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Get normalized input and target for validation
+        
+        Returns:
+            x: Normalized input features [6]
+            y: Targets [estimated temperature, measured ampacity]
+        """
+        # Build input vector
+        x = np.array([
+            self.T_ambient[idx],
+            self.wind_speed[idx],
+            self.wind_angle[idx],
+            self.solar_irradiance[idx],
+            self.current[idx],
+            self.physics.R_ref.item(),
+        ])
+        
+        # Normalize
+        x_norm = self.normalizer.transform(x)
+        
+        # Targets: use estimated temperature and measured ampacity
+        y = np.array([
+            self.T_conductor[idx],
+            self.ampacity[idx],
+        ])
+        
+        return (
+            torch.tensor(x_norm, dtype=torch.float32),
+            torch.tensor(y, dtype=torch.float32),
+        )
+    
+    def get_raw_inputs(self, idx: int) -> Dict[str, float]:
+        """Get unnormalized inputs"""
+        return {
+            'T_ambient': self.T_ambient[idx],
+            'wind_speed': self.wind_speed[idx],
+            'wind_angle': self.wind_angle[idx],
+            'solar_irradiance': self.solar_irradiance[idx],
+            'current': self.current[idx],
+        }
+    
+    def get_statistics(self) -> Dict[str, Dict[str, float]]:
+        """Get dataset statistics"""
+        return {
+            'T_ambient': {'min': self.T_ambient.min(), 'max': self.T_ambient.max(), 'mean': self.T_ambient.mean()},
+            'wind_speed': {'min': self.wind_speed.min(), 'max': self.wind_speed.max(), 'mean': self.wind_speed.mean()},
+            'wind_angle': {'min': self.wind_angle.min(), 'max': self.wind_angle.max(), 'mean': self.wind_angle.mean()},
+            'solar_irradiance': {'min': self.solar_irradiance.min(), 'max': self.solar_irradiance.max(), 'mean': self.solar_irradiance.mean()},
+            'current': {'min': self.current.min(), 'max': self.current.max(), 'mean': self.current.mean()},
+            'T_conductor': {'min': self.T_conductor.min(), 'max': self.T_conductor.max(), 'mean': self.T_conductor.mean()},
+            'ampacity': {'min': self.ampacity.min(), 'max': self.ampacity.max(), 'mean': self.ampacity.mean()},
+        }
+
+
+class MixedDataset(Dataset):
+    """
+    Mixed dataset combining synthetic and real data
+    
+    Samples from synthetic and real datasets according to given ratio.
+    """
+    
+    def __init__(
+        self,
+        synthetic_dataset: SyntheticDLRDataset,
+        real_dataset: RealDLRDataset,
+        synthetic_ratio: float = 0.7,
+        seed: int = 42,
+    ):
+        """
+        Create mixed dataset
+        
+        Args:
+            synthetic_dataset: SyntheticDLRDataset instance
+            real_dataset: RealDLRDataset instance
+            synthetic_ratio: Fraction of samples from synthetic (0.0 to 1.0)
+            seed: Random seed
+        """
+        np.random.seed(seed)
+        
+        self.synthetic = synthetic_dataset
+        self.real = real_dataset
+        self.synthetic_ratio = synthetic_ratio
+        
+        # Total samples
+        self.n_samples = len(synthetic_dataset) + len(real_dataset)
+        
+        # Create sampling indices
+        n_synthetic = int(self.n_samples * synthetic_ratio)
+        n_real = self.n_samples - n_synthetic
+        
+        # Sample indices
+        synthetic_indices = np.random.choice(len(synthetic_dataset), n_synthetic, replace=True)
+        real_indices = np.random.choice(len(real_dataset), n_real, replace=True)
+        
+        self.indices = []
+        self.datasets = []
+        
+        for idx in synthetic_indices:
+            self.indices.append(idx)
+            self.datasets.append('synthetic')
+        
+        for idx in real_indices:
+            self.indices.append(idx)
+            self.datasets.append('real')
+        
+        # Shuffle
+        combined = list(zip(self.indices, self.datasets))
+        np.random.shuffle(combined)
+        self.indices, self.datasets = zip(*combined)
+        
+        # Use synthetic normalizer for consistency
+        self.normalizer = synthetic_dataset.normalizer
+    
+    def __len__(self) -> int:
+        return self.n_samples
+    
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        dataset_type = self.datasets[idx]
+        data_idx = self.indices[idx]
+        
+        if dataset_type == 'synthetic':
+            return self.synthetic[data_idx]
+        else:
+            return self.real[data_idx]
+
+
 def create_dataloaders(
     n_train: int = 15000,
     n_val: int = 3000,
     batch_size: int = 256,
     num_workers: int = 0,
     seed: int = 42,
-) -> Tuple[DataLoader, DataLoader, SyntheticDLRDataset, SyntheticDLRDataset]:
+    real_data_path: Optional[str] = None,
+    vietnam_data_path: Optional[str] = None,
+    synthetic_ratio: float = 0.7,
+) -> Tuple[DataLoader, DataLoader, Dataset, Dataset]:
     """
     Create training and validation dataloaders
     
@@ -323,6 +620,9 @@ def create_dataloaders(
         batch_size: Batch size
         num_workers: DataLoader workers (0 for M1/M2 Mac)
         seed: Random seed
+        real_data_path: Path to Berlin real data CSV (optional)
+        vietnam_data_path: Path to Vietnam transmission data CSV (optional)
+        synthetic_ratio: Fraction of synthetic data when mixing (0.0 to 1.0)
         
     Returns:
         train_loader: Training DataLoader
@@ -330,20 +630,132 @@ def create_dataloaders(
         train_dataset: Training dataset (for accessing normalizer)
         val_dataset: Validation dataset
     """
-    # Create datasets with different seeds
-    train_dataset = SyntheticDLRDataset(
-        n_samples=n_train, 
-        seed=seed,
-        add_noise=True
-    )
-    val_dataset = SyntheticDLRDataset(
-        n_samples=n_val, 
-        seed=seed + 1000,  # Different seed for validation
-        add_noise=True
-    )
-    
-    # Use same normalizer for both
-    val_dataset.normalizer = train_dataset.normalizer
+    if real_data_path and vietnam_data_path:
+        # Mix Berlin and Vietnam data
+        berlin_dataset = RealDLRDataset(real_data_path)
+        vietnam_dataset = VietnamDataset(vietnam_data_path)
+        
+        # Create synthetic datasets
+        n_synthetic_train = int(n_train * synthetic_ratio)
+        n_real_train = n_train - n_synthetic_train
+        n_berlin_train = n_real_train // 2
+        n_vietnam_train = n_real_train - n_berlin_train
+        
+        n_synthetic_val = int(n_val * synthetic_ratio)
+        n_real_val = n_val - n_synthetic_val
+        n_berlin_val = n_real_val // 2
+        n_vietnam_val = n_real_val - n_berlin_val
+        
+        synthetic_train = SyntheticDLRDataset(
+            n_samples=n_synthetic_train, 
+            seed=seed,
+            add_noise=True
+        )
+        synthetic_val = SyntheticDLRDataset(
+            n_samples=n_synthetic_val, 
+            seed=seed + 1000,
+            add_noise=True
+        )
+        
+        # Sample from real datasets
+        berlin_indices_train = np.random.choice(len(berlin_dataset), n_berlin_train, replace=True)
+        vietnam_indices_train = np.random.choice(len(vietnam_dataset), n_vietnam_train, replace=True)
+        berlin_indices_val = np.random.choice(len(berlin_dataset), n_berlin_val, replace=True)
+        vietnam_indices_val = np.random.choice(len(vietnam_dataset), n_vietnam_val, replace=True)
+        
+        # Create combined datasets (this is simplified - ideally would create a MultiMixedDataset)
+        # For now, use Vietnam as primary real dataset
+        train_dataset = MixedDataset(
+            synthetic_train, vietnam_dataset, synthetic_ratio, seed=seed
+        )
+        val_dataset = MixedDataset(
+            synthetic_val, vietnam_dataset, synthetic_ratio, seed=seed + 1000
+        )
+        
+        # Use synthetic normalizer
+        val_dataset.normalizer = train_dataset.normalizer = synthetic_train.normalizer
+        
+    elif real_data_path:
+        # Load Berlin real data
+        real_dataset = RealDLRDataset(real_data_path)
+        
+        # Create synthetic datasets
+        n_synthetic_train = int(n_train * synthetic_ratio)
+        n_real_train = n_train - n_synthetic_train
+        
+        n_synthetic_val = int(n_val * synthetic_ratio)
+        n_real_val = n_val - n_synthetic_val
+        
+        synthetic_train = SyntheticDLRDataset(
+            n_samples=n_synthetic_train, 
+            seed=seed,
+            add_noise=True
+        )
+        synthetic_val = SyntheticDLRDataset(
+            n_samples=n_synthetic_val, 
+            seed=seed + 1000,
+            add_noise=True
+        )
+        
+        # Create mixed datasets
+        train_dataset = MixedDataset(
+            synthetic_train, real_dataset, synthetic_ratio, seed=seed
+        )
+        val_dataset = MixedDataset(
+            synthetic_val, real_dataset, synthetic_ratio, seed=seed + 1000
+        )
+        
+        # Use synthetic normalizer
+        val_dataset.normalizer = train_dataset.normalizer = synthetic_train.normalizer
+        
+    elif vietnam_data_path:
+        # Load Vietnam data
+        vietnam_dataset = VietnamDataset(vietnam_data_path)
+        
+        # Create synthetic datasets
+        n_synthetic_train = int(n_train * synthetic_ratio)
+        n_vietnam_train = n_train - n_synthetic_train
+        
+        n_synthetic_val = int(n_val * synthetic_ratio)
+        n_vietnam_val = n_val - n_synthetic_val
+        
+        synthetic_train = SyntheticDLRDataset(
+            n_samples=n_synthetic_train, 
+            seed=seed,
+            add_noise=True
+        )
+        synthetic_val = SyntheticDLRDataset(
+            n_samples=n_synthetic_val, 
+            seed=seed + 1000,
+            add_noise=True
+        )
+        
+        # Create mixed datasets
+        train_dataset = MixedDataset(
+            synthetic_train, vietnam_dataset, synthetic_ratio, seed=seed
+        )
+        val_dataset = MixedDataset(
+            synthetic_val, vietnam_dataset, synthetic_ratio, seed=seed + 1000
+        )
+        
+        # Use synthetic normalizer
+        val_dataset.normalizer = train_dataset.normalizer = synthetic_train.normalizer
+        
+    else:
+        # Pure synthetic
+        train_dataset = SyntheticDLRDataset(
+            n_samples=n_train, 
+            seed=seed,
+            add_noise=True
+        )
+        val_dataset = SyntheticDLRDataset(
+            n_samples=n_val, 
+            seed=seed + 1000,
+            add_noise=True
+        )
+        
+        # Use same normalizer for both
+        val_dataset.normalizer = train_dataset.normalizer
     
     # Create dataloaders
     train_loader = DataLoader(
@@ -395,28 +807,308 @@ def denormalize_batch(
     }
 
 
+class VietnamDataset(Dataset):
+    """
+    Dataset for Vietnam 220kV transmission line data
+    
+    Loads real transmission line data and provides physics-informed
+    training targets for DLR model development.
+    """
+    
+    def __init__(self, csv_path: str, normalize: bool = True):
+        """
+        Args:
+            csv_path: Path to CSV file with Vietnam transmission data
+            normalize: Whether to normalize inputs
+        """
+        self.csv_path = csv_path
+        self.normalize = normalize
+        
+        # Initialize physics for resistance reference
+        from .physics import IEEE738HeatBalance
+        self.physics = IEEE738HeatBalance()
+        
+        # Load data
+        self._load_data()
+        
+        # Setup normalizer if requested
+        if normalize:
+            self.normalizer = InputNormalizer()
+            # Fit on all input features (weather + current)
+            raw_inputs = np.column_stack([
+                self.weather_data, 
+                self.current_data.reshape(-1, 1)
+            ])
+            self.normalizer.fit(raw_inputs)
+    
+    def _load_data(self):
+        """Load and preprocess Vietnam dataset"""
+        # Load CSV
+        df = pd.read_csv(self.csv_path)
+        
+        # Extract time-based features
+        if 'time' in df.columns or 'datetime' in df.columns:
+            time_col = 'time' if 'time' in df.columns else 'datetime'
+            self._hour = pd.to_datetime(df[time_col]).dt.hour
+        else:
+            # If no time column, assume all hours are 12 (noon)
+            self._hour = np.full(len(df), 12)
+        
+        # Map actual column names to expected names
+        column_mapping = {
+            'temp': 'T_ambient',
+            'Wind1': 'wind_speed', 
+            'WinDir': 'wind_angle',
+            'GHI': 'solar_irradiance',
+            'Ampacity': 'ampacity'
+        }
+        
+        # Rename columns
+        df = df.rename(columns=column_mapping)
+        
+        # Add missing columns that we need to synthesize
+        # For real data, we don't have current and T_conductor
+        # We'll synthesize reasonable current values and compute T_conductor from physics
+        
+        # Generate synthetic current values (assume various load conditions)
+        np.random.seed(42)  # For reproducibility
+        n_samples = len(df)
+        
+        # Current typically ranges from 0 to ampacity/2 for safety
+        # We'll use a distribution that favors higher currents
+        current_values = []
+        for amp in df['ampacity']:
+            # Sample current from 0.1 to 0.9 of ampacity
+            current = np.random.beta(2, 1) * 0.8 * amp + 0.1 * amp
+            current_values.append(current)
+        
+        df['current'] = current_values
+        
+        # Compute conductor temperature using physics
+        # This is approximate since we don't have the exact conditions
+        physics = IEEE738HeatBalance()
+        T_conductor_values = []
+        
+        for idx, row in df.iterrows():
+            try:
+                # Use physics to estimate conductor temperature at this current
+                T_cond, _ = physics(
+                    T_amb=row['T_ambient'],
+                    V_wind=row['wind_speed'],
+                    Q_solar=row['solar_irradiance'],
+                    I_load=row['current']
+                )
+                T_conductor_values.append(T_cond.item())
+            except:
+                # Fallback: assume 30°C rise over ambient
+                T_conductor_values.append(row['T_ambient'] + 30)
+        
+        df['T_conductor'] = T_conductor_values
+        
+        # Now we have all required columns
+        required_cols = ['T_ambient', 'wind_speed', 'wind_angle', 'solar_irradiance', 
+                        'current', 'T_conductor', 'ampacity']
+        
+        # Check if all columns exist
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if missing_cols:
+            raise ValueError(f"Missing columns in CSV: {missing_cols}")
+        
+        self.data = df[required_cols].copy()
+        
+        # Convert to numpy arrays
+        self.weather_data = self.data[['T_ambient', 'wind_speed', 'wind_angle', 'solar_irradiance']].values
+        self.current_data = self.data['current'].values
+        self.targets = self.data[['T_conductor', 'ampacity']].values
+        
+        # Store as tensors
+        self.weather_tensor = torch.tensor(self.weather_data, dtype=torch.float32)
+        self.current_tensor = torch.tensor(self.current_data, dtype=torch.float32).unsqueeze(-1)
+        self.target_tensor = torch.tensor(self.targets, dtype=torch.float32)
+        
+        print(f"Loaded {len(self.data)} samples from {self.csv_path}")
+        print(f"Synthesized current and conductor temperature data")
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        """
+        Returns:
+            x: Input features [5] - [T_ambient, wind_speed, wind_angle, solar_irradiance, current]
+            y: Targets [T_conductor, ampacity]
+        """
+        # Build input vector (weather + current, no resistance - model handles that)
+        x = np.array([
+            self.weather_data[idx, 0],  # T_ambient
+            self.weather_data[idx, 1],  # wind_speed
+            self.weather_data[idx, 2],  # wind_angle
+            self.weather_data[idx, 3],  # solar_irradiance
+            self.current_data[idx],     # current
+        ])
+        
+        # Normalize if requested
+        if self.normalize:
+            x_norm = self.normalizer.transform(x.reshape(1, -1)).flatten()
+            x = torch.tensor(x_norm, dtype=torch.float32)
+        else:
+            x = torch.tensor(x, dtype=torch.float32)
+        
+        # Targets
+        y = self.targets[idx]
+        y = torch.tensor(y, dtype=torch.float32)
+        
+        return x, y
+    
+    @property
+    def T_ambient(self):
+        return self.weather_data[:, 0]
+    
+    @property
+    def wind_speed(self):
+        return self.weather_data[:, 1]
+    
+    @property
+    def ampacity(self):
+        return self.targets[:, 1]
+    
+    @property
+    def hour(self):
+        return self._hour
+
+
+class USDataset(Dataset):
+    """
+    Dataset for US transmission line training data.
+
+    Loads pre-processed HDF5 data created by prepare_us_training_data.py
+    that combines US DLR ratios with weather data from WIND Toolkit/NSRDB.
+    """
+
+    def __init__(self, hdf5_path: str, normalizer: Optional['InputNormalizer'] = None,
+                 target_column: str = 'dlr_ampacity'):
+        """
+        Args:
+            hdf5_path: Path to HDF5 file with training data
+            normalizer: Input normalizer (will be fitted if None)
+            target_column: Column name for target ampacity values
+        """
+        self.hdf5_path = Path(hdf5_path)
+        self.target_column = target_column
+
+        if not self.hdf5_path.exists():
+            raise FileNotFoundError(f"US training data not found: {hdf5_path}")
+
+        # Load data
+        print(f"Loading US training data from {hdf5_path}...")
+        self.df = pd.read_hdf(hdf5_path, key='train')
+        print(f"Loaded {len(self.df)} training samples")
+
+        # Convert timestamp if needed
+        if 'timestamp' in self.df.columns:
+            self.df['timestamp'] = pd.to_datetime(self.df['timestamp'])
+
+        # Define input features (weather + line parameters)
+        self.input_features = [
+            'T_amb',           # Ambient temperature (°C)
+            'wind_speed',      # Wind speed (m/s)
+            'wind_direction',  # Wind direction (degrees)
+            'solar_irradiance', # Solar irradiance (W/m²)
+            'voltage_kv'       # Line voltage (kV)
+        ]
+
+        # Check required columns exist
+        missing_features = [col for col in self.input_features if col not in self.df.columns]
+        if missing_features:
+            raise ValueError(f"Missing required input features: {missing_features}")
+
+        if target_column not in self.df.columns:
+            raise ValueError(f"Target column '{target_column}' not found in data")
+
+        # Setup normalizer
+        if normalizer is None:
+            self.normalizer = InputNormalizer()
+            # Fit on input features only (exclude targets and metadata)
+            input_data = self.df[self.input_features].values
+            self.normalizer.fit(input_data)
+        else:
+            self.normalizer = normalizer
+
+        print(f"Input features: {self.input_features}")
+        print(f"Target: {target_column}")
+        print(f"Data shape: {self.df.shape}")
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        row = self.df.iloc[idx]
+
+        # Extract inputs
+        x_raw = row[self.input_features].values.astype(np.float32)
+
+        # Normalize inputs
+        x_normalized = self.normalizer.transform(x_raw.reshape(1, -1)).flatten()
+
+        # Extract targets
+        # For US data, we have direct DLR ampacity targets
+        y = np.array([
+            row.get('conductor_temp_limit', 75.0),  # Assumed conductor temp limit
+            row[self.target_column]  # DLR ampacity
+        ], dtype=np.float32)
+
+        return torch.tensor(x_normalized), torch.tensor(y)
+
+    def get_statistics(self):
+        """Get dataset statistics"""
+        stats = {}
+        for col in self.input_features + [self.target_column]:
+            if col in self.df.columns:
+                values = self.df[col].values
+                stats[col] = {
+                    'min': float(np.min(values)),
+                    'max': float(np.max(values)),
+                    'mean': float(np.mean(values)),
+                    'std': float(np.std(values))
+                }
+        return stats
+
+    def get_hour(self):
+        """Extract hour from timestamp for time-based filtering"""
+        if 'timestamp' in self.df.columns:
+            return self.df['timestamp'].dt.hour.values
+        else:
+            # Default to midday if no timestamp
+            return np.full(len(self.df), 12, dtype=int)
+
+    @property
+    def _hour(self):
+        """Hour property for compatibility"""
+        return self.get_hour()
+
+
 # Quick test
 if __name__ == "__main__":
     print("Creating synthetic dataset...")
     dataset = SyntheticDLRDataset(n_samples=1000)
-    
+
     print("\nDataset statistics:")
     stats = dataset.get_statistics()
     for key, values in stats.items():
         print(f"  {key}: min={values['min']:.1f}, max={values['max']:.1f}, mean={values['mean']:.1f}")
-    
+
     print("\nSample data:")
     x, y = dataset[0]
     print(f"  Input (normalized): {x}")
     print(f"  Output: T_conductor={y[0]:.1f}°C, ampacity={y[1]:.0f}A")
-    
+
     print("\nCreating dataloaders...")
     train_loader, val_loader, train_ds, val_ds = create_dataloaders(
         n_train=5000, n_val=1000, batch_size=128
     )
     print(f"  Train batches: {len(train_loader)}")
     print(f"  Val batches: {len(val_loader)}")
-    
+
     # Test batch
     x_batch, y_batch = next(iter(train_loader))
     print(f"\nBatch shapes: x={x_batch.shape}, y={y_batch.shape}")

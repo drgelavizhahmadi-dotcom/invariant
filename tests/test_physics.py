@@ -46,7 +46,25 @@ class TestIEEE738HeatBalance:
         Q_high_wind = physics.convective_heat_loss(T_c, T_a, torch.tensor([10.0]))
         
         assert Q_high_wind > Q_low_wind, "Higher wind should increase cooling"
-    
+
+    def test_low_wind_prefers_natural_convection(self, physics):
+        """When wind < 0.6 m/s, convective_heat_loss should use natural convection"""
+        T_c = torch.tensor([80.0])
+        T_a = torch.tensor([20.0])
+
+        wind_very_low = torch.tensor([0.1])
+        q_total = physics.convective_heat_loss(T_c, T_a, wind_very_low)
+
+        q_natural = physics.convective_heat_loss_natural(T_c, T_a)
+        q_forced = physics.convective_heat_loss_forced(T_c, T_a, wind_very_low)
+
+        # At very low wind, total cooling should equal natural convection
+        assert torch.allclose(q_total, q_natural, rtol=1e-4, atol=1e-6), (
+            "Low-wind convective loss should equal natural convection"
+        )
+
+        # Forced convection at very low wind should not exceed natural in final selection
+        assert q_forced <= q_natural + 1e-6, "Forced convective term should not dominate at V<0.6 m/s"    
     def test_radiative_cooling_requires_temperature_difference(self, physics):
         """No radiation if conductor = ambient"""
         T_same = torch.tensor([25.0])

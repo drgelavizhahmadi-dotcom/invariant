@@ -2,6 +2,12 @@
 # Python 3.11+ required
 
 # Core ML
+# Note: install PyTorch for your platform (CPU, CUDA or Apple MPS). If you
+# use a virtual environment run `pip install -r requirements.txt` afterwards.
+# Example installs (choose one that matches your system):
+#  - macOS (MPS): pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#  - CPU only:    pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#  - CUDA:        follow instructions at https://pytorch.org
 torch>=2.0.0
 numpy>=1.24.0
 pandas>=2.0.0
@@ -10,6 +16,7 @@ scikit-learn>=1.3.0
 # Data & APIs
 requests>=2.31.0
 python-dotenv>=1.0.0
+h5py>=3.9.0
 
 # Demo UI
 gradio>=4.0.0

@@ -11,7 +11,16 @@ Author: Dr. Gelavizh Ahmadi
 Copyright (c) 2026 Invariant Energy GmbH
 """
 
-import torch
+try:
+    import torch
+except Exception as e:
+    raise ImportError(
+        "PyTorch is required to run inference.\n"
+        "Install with: `pip install -r requirements.txt` or follow platform-specific instructions:\n"
+        "  - macOS (MPS): `pip install torch --index-url https://download.pytorch.org/whl/nightly/cpu`\n"
+        "  - CPU (Linux/macOS): `pip install torch --index-url https://download.pytorch.org/whl/cpu`\n"
+        "  - CUDA: see https://pytorch.org for the correct wheel for your CUDA version"
+    ) from e
 import numpy as np
 from typing import Dict, Optional, Tuple, Union, List
 from pathlib import Path

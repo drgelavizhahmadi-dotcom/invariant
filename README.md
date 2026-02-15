@@ -46,6 +46,44 @@ python -m core.train --quick --save-path models/quick_model.pt
 python -m core.train --epochs 100 --save-path models/best_model.pt
 ```
 
+Enable Apple Silicon GPU (MPS)
+
+```python
+# in Python code
+device = 'mps' if torch.backends.mps.is_available() else 'cpu'
+```
+
+```bash
+# preferred — run training on the M1/M2 GPU via MPS
+python -m scripts.train_hwf_pikan_production --device mps
+```
+
+### HOW TO RUN (production training)
+
+Basic run:
+
+```bash
+python -m scripts.train_hwf_pikan_production --epochs 200 --batch-size 64
+```
+
+With custom settings:
+
+```bash
+python -m scripts.train_hwf_pikan_production \
+  --data-path data/mendeley/vietnam_220kv.csv \
+  --save-dir runs/hwf_pikan_$(date +%Y%m%d_%H%M%S) \
+  --epochs 200 \
+  --batch-size 64 \
+  --lr 1e-3 \
+  --device auto
+```
+
+Resume from checkpoint:
+
+```bash
+python -m scripts.train_hwf_pikan_production --resume runs/previous_run/checkpoint_epoch100.pt
+```
+
 ### Run Demo
 
 ```bash
