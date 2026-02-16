@@ -195,7 +195,7 @@ If you use Invariant-PIKAN in academic research, please cite:
 
 - **Vietnam Dataset**: Mendeley Data Repository (220kV transmission line)
 - **US Dataset**: NREL & Grid Operator Partnership Program
-- **Adversarial Testing**: Sharif University FGSM/BIM methodology
+- **Adversarial Testing**: Standard FGSM/BIM attack methodologies
 - **Physics Validation**: IEEE 738-2012 Standard Working Group
 
 ---
