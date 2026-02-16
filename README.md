@@ -133,15 +133,6 @@ Invariant-PIKAN implements a **Hybrid Wavelet-Fourier Physics-Informed Kolmogoro
 - **KAN Backbone**: Kolmogorov-Arnold representation with Chebyshev polynomials
 - **Physics Loss**: IEEE 738 heat balance residual penalty
 
-### Concurrent Academic Work
-
-This implementation builds upon mathematical foundations shared with concurrent research:
-
-> **Citation Notice**: The HWF-PIKAN architecture was independently explored for collisionless Boltzmann equations in plasma physics (Heravifard et al., Sharif University, December 2025). Invariant-PIKAN adapts these mathematical principles for power grid applications, with domain-specific modifications for:
-> - IEEE 738 thermal rating compliance
-> - Adversarial robustness certification
-> - Safety-critical production requirements
-
 ---
 
 ## 📜 License
