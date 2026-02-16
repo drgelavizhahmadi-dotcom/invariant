@@ -122,6 +122,36 @@ def random_split_dataset(dataset, test_frac: float = 0.2) -> Tuple[Subset, Subse
     return Subset(dataset, train_idx), Subset(dataset, val_idx)
 
 
+def three_way_split_dataset(dataset, test_frac: float = 0.1, val_frac_of_remaining: float = 0.1, randomize: bool = False) -> Tuple[Subset, Subset, Subset]:
+    """Split dataset into train / val / test subsets.
+
+    - test_frac: fraction of total to reserve for final testing (e.g. 0.1)
+    - val_frac_of_remaining: fraction of the remaining (after test) to use as validation
+      (default 0.1 -> validation is 9% of total when test_frac=0.1)
+    - randomize: if True perform a random permutation before splitting; otherwise use temporal order
+
+    Returns (train_subset, val_subset, test_subset)
+    """
+    n = len(dataset)
+    test_size = int(n * test_frac)
+    remaining = n - test_size
+    val_size = int(remaining * val_frac_of_remaining)
+    train_size = n - test_size - val_size
+
+    if randomize:
+        indices = list(range(n))
+        np.random.shuffle(indices)
+        test_idx = indices[:test_size]
+        val_idx = indices[test_size:test_size + val_size]
+        train_idx = indices[test_size + val_size:]
+    else:
+        train_idx = list(range(0, train_size))
+        val_idx = list(range(train_size, train_size + val_size))
+        test_idx = list(range(train_size + val_size, n))
+
+    return Subset(dataset, train_idx), Subset(dataset, val_idx), Subset(dataset, test_idx)
+
+
 def compute_metrics(true: np.ndarray, pred: np.ndarray) -> Dict[str, float]:
     mae = float(mean_absolute_error(true, pred))
     rmse = float(math.sqrt(mean_squared_error(true, pred)))
@@ -287,6 +317,9 @@ def train(
     save_final: bool = True,
     use_amp: bool = False,
     use_uq: bool = False,
+    random_split: bool = False,
+    test_frac: float = 0.1,
+    save_test: bool = False,
     seed: int = 42,
 ):
         # Resolve device string (support 'auto' -> cuda > mps > cpu)
@@ -329,6 +362,9 @@ def train(
             'validate_every': validate_every,
             'use_amp': use_amp,
             'use_uq': use_uq,
+            'random_split': random_split,
+            'test_frac': test_frac,
+            'save_test': save_test,
             'seed': seed,
         }
         try:
@@ -341,8 +377,16 @@ def train(
         if us_data_path is not None:
             print(f"Loading US training dataset from: {us_data_path}")
             dataset = USDataset(us_data_path, normalizer=None)
-            train_set, val_set = random_split_dataset(dataset, test_frac=0.2)
+            # three-way split: train / val / test (randomized for US data)
+            train_set, val_set, test_set = three_way_split_dataset(dataset, test_frac=test_frac, val_frac_of_remaining=0.1, randomize=True)
             dataset_type = "US_DLR"
+            # optionally persist test indices
+            if save_test:
+                try:
+                    torch.save(test_set.indices, run_dir / 'test_indices.pt')
+                    print(f"Saved test indices -> {run_dir / 'test_indices.pt'}")
+                except Exception as _e:
+                    print(f"Warning: failed to save test indices: {_e}")
         elif data_path.endswith('.h5'):
             print(f"Loading unified training dataset from: {data_path}")
             df = pd.read_hdf(data_path, key='data')
@@ -409,13 +453,32 @@ def train(
             temp_csv = run_dir / 'temp_unified_data.csv'
             df.to_csv(temp_csv, index=False)
             dataset = VietnamDataset(str(temp_csv))
-            train_set, val_set = temporal_split_dataset(dataset, test_frac=0.2)
+            # three-way split: train / val / test
+            train_set, val_set, test_set = three_way_split_dataset(dataset, test_frac=test_frac, val_frac_of_remaining=0.1, randomize=random_split)
             dataset_type = "Unified"
+            # persist test indices and test-data CSV when requested
+            if save_test:
+                try:
+                    torch.save(test_set.indices, run_dir / 'test_indices.pt')
+                    try:
+                        df.iloc[test_set.indices].to_csv(run_dir / 'test_data.csv', index=False)
+                    except Exception:
+                        pass
+                    print(f"Saved test indices -> {run_dir / 'test_indices.pt'} (and test_data.csv)")
+                except Exception as _e:
+                    print(f"Warning: could not save test indices: {_e}")
         else:
             print(f"Loading Vietnam training dataset from: {data_path}")
             dataset = VietnamDataset(data_path)
-            train_set, val_set = temporal_split_dataset(dataset, test_frac=0.2)
+            # three-way split: train / val / test
+            train_set, val_set, test_set = three_way_split_dataset(dataset, test_frac=test_frac, val_frac_of_remaining=0.1, randomize=random_split)
             dataset_type = "Vietnam"
+            if save_test:
+                try:
+                    torch.save(test_set.indices, run_dir / 'test_indices.pt')
+                    print(f"Saved test indices -> {run_dir / 'test_indices.pt'}")
+                except Exception as _e:
+                    print(f"Warning: could not save test indices: {_e}")
 
         # TODO: US DLR dataset integration (currently contains pre-computed ratios only)
         # The downloaded US DLR dataset has DLR ratios but no weather features for training
@@ -858,6 +921,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch-size', type=int, default=128)
     parser.add_argument('--lr', type=float, default=1e-3)
+    parser.add_argument('--lambda-physics', type=float, default=0.0, help='Weight for physics loss (default: 0.0)')
     parser.add_argument('--device', default='auto', help="Device to use: 'auto'|'cpu'|'cuda'|'mps' — use 'mps' on Apple Silicon (recommended)")
     parser.add_argument('--resume', default=None)
     parser.add_argument('--use-uq', action='store_true')
@@ -865,6 +929,9 @@ if __name__ == '__main__':
     parser.add_argument('--report-every', type=int, default=5, help='Print + save a compact report every N epochs')
     parser.add_argument('--physics-loss-every', type=int, default=5, help='Compute physics loss every N batches (default: 5)')
     parser.add_argument('--validate-every', type=int, default=5, help='Run validation every N epochs (default: 5)')
+    parser.add_argument('--random-split', action='store_true', help='Use random train/val split instead of temporal')
+    parser.add_argument('--test-frac', type=float, default=0.1, help='Fraction of data to hold out for final testing (default: 0.1)')
+    parser.add_argument('--save-test', action='store_true', help='Save test indices (or test data) in run directory for later evaluation')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility (default: 42)')
     args = parser.parse_args()
 
@@ -887,7 +954,7 @@ if __name__ == '__main__':
         batch_size=args.batch_size,
         lr=args.lr,
         adam_epochs=100,
-        lambda_physics=0.0,
+        lambda_physics=args.lambda_physics,
         device=resolved_device,
         report_every=args.report_every,
         physics_loss_every=args.physics_loss_every,
@@ -895,6 +962,9 @@ if __name__ == '__main__':
         resume_from=args.resume,
         use_amp=args.use_amp,
         use_uq=args.use_uq,
+        random_split=args.random_split,
+        test_frac=args.test_frac,
+        save_test=args.save_test,
         seed=args.seed,
     )
 

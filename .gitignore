@@ -3,3 +3,22 @@ venv/
 *.pyc
 __pycache__/
 models/*.pt
+
+# Data and results (large files)
+data/
+runs/
+results/
+validation_results/
+calibration_results/
+hybrid_results/
+experiments/
+reports/
+.pytest_cache/
+.snakemake/
+*.log
+*.png
+*.csv
+*.h5
+*.hdf5
+.DS_Store
+temp_*
