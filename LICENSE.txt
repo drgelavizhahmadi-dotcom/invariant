@@ -94,6 +94,13 @@ Licensed under BSL 1.1."
 
 --------------------------------------------------------------------------------
 
+DISCLAIMER
+
+This implementation is independent of concurrent academic work on HWF-PIKAN
+for plasma physics applications (Heravifard et al., Sharif University, 2025).
+The architectures share common mathematical foundations but target different
+application domains.
+
 For commercial licensing inquiries:
 Email: gelavizh@invariant.energy
 Web: https://invariant.energy

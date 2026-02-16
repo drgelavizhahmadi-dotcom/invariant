@@ -6,6 +6,8 @@ This software is licensed under the Business Source License 1.1 (BSL 1.1).
 Commercial production use requires a separate license agreement.
 See LICENSE.txt for full terms.
 
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
 """
 
 #!/usr/bin/env python
