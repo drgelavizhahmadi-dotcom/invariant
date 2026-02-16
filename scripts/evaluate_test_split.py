@@ -1,9 +1,21 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """Evaluate a saved model on the held-out test split created by
-`scripts/train_hwf_pikan_production.py --save-test`.
+`scripts/train_invariant_pikan_production.py --save-test`.
 
 Usage:
-  python scripts/evaluate_test_split.py --run-dir runs/hwf_pikan_production_YYYYMMDD_HHMMSS
+  python scripts/evaluate_test_split.py --run-dir runs/invariant_pikan_production_YYYYMMDD_HHMMSS
 
 The script expects `test_indices.pt` to exist in the run directory (saved by training when
 `--save-test` was used). For unified/HDF5 runs the training also saves `temp_unified_data.csv`
@@ -23,7 +35,7 @@ from torch.utils.data import DataLoader, Subset
 # ensure project package imports work when running as a script
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 from core.data import VietnamDataset, USDataset
 
 
@@ -100,7 +112,7 @@ def main():
     if isinstance(ckpt, dict) and 'config' in ckpt and isinstance(ckpt['config'], dict):
         model_cfg = ckpt['config'].get('model', None)
 
-    model = create_hwf_pikan_v2(config=model_cfg) if model_cfg is not None else create_hwf_pikan_v2({})
+    model = create_invariant_pikan_v2(config=model_cfg) if model_cfg is not None else create_invariant_pikan_v2({})
     model.load_state_dict(ckpt['model_state_dict'])
     model.to(device)
     model.eval()

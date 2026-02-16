@@ -1,3 +1,15 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 Compare base model vs fine-tuned model on US test data.
@@ -12,7 +24,7 @@ import argparse
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 from core.data import VietnamDataset
 from torch.utils.data import DataLoader, Subset
 
@@ -87,14 +99,14 @@ def main():
     print(f"\nLoading base model: {args.base_model}")
     base_ckpt = torch.load(args.base_model, map_location=device, weights_only=False)
     model_cfg = base_ckpt.get('config', {}).get('model', None) if isinstance(base_ckpt, dict) and 'config' in base_ckpt else {}
-    base_model = create_hwf_pikan_v2(config=model_cfg)
+    base_model = create_invariant_pikan_v2(config=model_cfg)
     base_model.load_state_dict(base_ckpt['model_state_dict'])
     base_model = base_model.to(device)
     
     # Load fine-tuned model
     print(f"Loading fine-tuned model: {args.finetuned_model}")
     ft_ckpt = torch.load(args.finetuned_model, map_location=device, weights_only=False)
-    ft_model = create_hwf_pikan_v2(config=model_cfg)
+    ft_model = create_invariant_pikan_v2(config=model_cfg)
     ft_model.load_state_dict(ft_ckpt['model_state_dict'])
     ft_model = ft_model.to(device)
     

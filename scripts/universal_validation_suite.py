@@ -1,3 +1,15 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 Universal Validation Suite for DLR Models
@@ -31,7 +43,7 @@ from scipy import stats
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 from core.physics import IEEE738HeatBalance
 from core.data import VietnamDataset
 
@@ -493,7 +505,7 @@ def main():
     checkpoint = torch.load(args.model_path, map_location=device, weights_only=False)
     
     model_cfg = checkpoint.get('config', {}).get('model', None) if isinstance(checkpoint, dict) and 'config' in checkpoint else {}
-    model = create_hwf_pikan_v2(config=model_cfg)
+    model = create_invariant_pikan_v2(config=model_cfg)
     model.load_state_dict(checkpoint['model_state_dict'])
     model = model.to(device)
     
@@ -517,7 +529,7 @@ def main():
     # Fallback to unified test data
     if not test_loaders:
         print("Warning: No region-specific test data found. Using unified test.")
-        unified_path = 'runs/hwf_pikan_production_unified_test_20260215_220656/test_data.csv'
+        unified_path = 'runs/invariant_pikan_production_unified_test_20260215_220656/test_data.csv'
         if Path(unified_path).exists():
             dataset = VietnamDataset(unified_path)
             test_loaders['unified'] = DataLoader(dataset, batch_size=256, shuffle=False)

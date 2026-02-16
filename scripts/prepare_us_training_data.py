@@ -1,3 +1,15 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 prepare_us_training_data.py
@@ -306,7 +318,7 @@ def main():
             print(f"   Samples: {len(df)}")
             print("
 📋 Next steps:"            print("1. Inspect the data: python -c \"import pandas as pd; df = pd.read_hdf('data/us_training.h5'); print(df.head())\"")
-            print("2. Train your model: python scripts/train_hwf_pikan_production.py --us-data data/us_training.h5")
+            print("2. Train your model: python scripts/train_invariant_pikan_production.py --us-data data/us_training.h5")
             print("3. Validate performance: python scripts/validate_us_dlr.py --model-path your_model.pt")
 
     except Exception as e:

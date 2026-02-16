@@ -1,8 +1,20 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 training_watchdog.py
 
-Monitors the latest HWF-PIKAN v2 training run for common issues and alerts
+Monitors the latest InvariantPIKAN v2 training run for common issues and alerts
 when red flags are detected.
 
 Checks (best-effort, relies on history.csv or TensorBoard events):
@@ -279,7 +291,7 @@ def single_check(runs_dir: str = 'runs') -> List[Dict[str, Any]]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Training watchdog for HWF-PIKAN v2')
+    parser = argparse.ArgumentParser(description='Training watchdog for InvariantPIKAN v2')
     parser.add_argument('--runs-dir', default='runs')
     parser.add_argument('--interval', type=int, default=600, help='Check interval in seconds (default 600s)')
     parser.add_argument('--once', action='store_true', help='Run single check and exit')

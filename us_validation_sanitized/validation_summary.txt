@@ -1,0 +1,19 @@
+MATCHED REAL-WEATHER VALIDATION RESULTS
+==================================================
+Model architecture: {'input_dim': 4, 'fourier_bands': 8, 'wavelet_scales': 2, 'hidden_dim': 32, 'kan_grid': 5, 'kan_k': 3}
+
+Overall MAE: 592.52 A
+Overall RMSE: 669.27 A
+Samples: 245472
+
+Performance by Wind Speed:
+  0-2 m/s: 495.96 A (58882 samples)
+  2-5 m/s: 555.05 A (66575 samples)
+  5-10 m/s: 683.48 A (65486 samples)
+  10-100 m/s: 633.30 A (54529 samples)
+
+Performance by Temperature:
+  -50-0 °C: 636.51 A (55235 samples)
+  0-15 °C: 804.92 A (560 samples)
+  15-25 °C: 817.87 A (398 samples)
+  25-50 °C: 764.50 A (1262 samples)

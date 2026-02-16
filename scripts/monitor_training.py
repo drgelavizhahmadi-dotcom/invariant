@@ -1,8 +1,20 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 monitor_training.py
 
-Quick monitor utility for HWF-PIKAN v2 training runs.
+Quick monitor utility for InvariantPIKAN v2 training runs.
 
 Features:
   1. Check whether the training process is running (by name).
@@ -12,7 +24,7 @@ Features:
 
 Usage:
   python scripts/monitor_training.py
-  python scripts/monitor_training.py --runs-dir runs --proc-name train_hwf_pikan_v2 --lines 10
+  python scripts/monitor_training.py --runs-dir runs --proc-name train_invariant_pikan_v2 --lines 10
 
 Designed to be robust (falls back to history.csv, event files, checkpoint contents).
 """
@@ -291,9 +303,9 @@ def main(args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Monitor HWF-PIKAN v2 training run')
+    parser = argparse.ArgumentParser(description='Monitor InvariantPIKAN v2 training run')
     parser.add_argument('--runs-dir', default='runs', help='Root runs directory')
-    parser.add_argument('--proc-name', default='train_hwf_pikan_v2', help='Process name to check')
+    parser.add_argument('--proc-name', default='train_invariant_pikan_v2', help='Process name to check')
     parser.add_argument('--lines', type=int, default=10, help='Number of recent entries/lines to show')
     args = parser.parse_args()
     sys.exit(main(args))

@@ -1,3 +1,15 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 import torch
 import pandas as pd
 import numpy as np
@@ -66,8 +78,8 @@ def load_model_with_checkpoint_architecture(checkpoint_path, device):
         print(f"📐 Inferred: kan hidden_dim={config['hidden_dim']}")
 
     # Create model with inferred architecture
-    from models.hwf_pikan_v2 import create_hwf_pikan_v2
-    model = create_hwf_pikan_v2(config=config)
+    from models.invariant_pikan_v2 import create_invariant_pikan_v2
+    model = create_invariant_pikan_v2(config=config)
 
     # Load the normalized state_dict into the model (allow missing keys if shapes differ)
     try:

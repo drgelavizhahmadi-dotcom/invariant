@@ -1,8 +1,20 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 inspect_learned_features.py
 
-Examine learned multi-resolution features from the latest HWF-PIKAN v2 checkpoint.
+Examine learned multi-resolution features from the latest InvariantPIKAN v2 checkpoint.
 
 - Loads model from the latest `runs/*/best_model.pt` (falls back to `models/best_model.pt`).
 - Extracts embedding parameters: `scales`, `freqs`, `wavelet_weights`.
@@ -26,11 +38,11 @@ import torch
 
 # Try to import model factory
 try:
-    from models.hwf_pikan_v2 import create_hwf_pikan_v2
+    from models.invariant_pikan_v2 import create_invariant_pikan_v2
 except Exception:
     # ensure project root on path
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from models.hwf_pikan_v2 import create_hwf_pikan_v2
+    from models.invariant_pikan_v2 import create_invariant_pikan_v2
 
 # TensorBoard EventAccumulator for reading Weights/physics
 try:
@@ -64,7 +76,7 @@ def find_best_checkpoint(run_dir: str) -> str:
 
 
 def load_model_from_checkpoint(ckpt_path: str):
-    """Attempt several safe fallbacks to obtain a HWF-PIKAN v2 model instance.
+    """Attempt several safe fallbacks to obtain a InvariantPIKAN v2 model instance.
 
     Order:
       1) torch.load(ckpt_path, weights_only=False)
@@ -107,10 +119,10 @@ def load_model_from_checkpoint(ckpt_path: str):
         if 'model_config' in cfg and isinstance(cfg['model_config'], dict):
             model_cfg = cfg['model_config']
         else:
-            # pick keys that match create_hwf_pikan_v2 signature
+            # pick keys that match create_invariant_pikan_v2 signature
             allowed = {'input_dim', 'hidden_dim', 'output_dim', 'fourier_bands', 'wavelet_scales', 'kan_grid', 'kan_k'}
             model_cfg = {k: cfg[k] for k in allowed & set(cfg.keys())}
-    model = create_hwf_pikan_v2(config=model_cfg or {})
+    model = create_invariant_pikan_v2(config=model_cfg or {})
 
     # determine state_dict
     if isinstance(data, dict) and 'model_state_dict' in data:
@@ -289,7 +301,7 @@ def main(runs_dir: str = 'runs') -> None:
     ax5.set_ylabel('Dominant Fourier period (hours)')
     ax5.set_title('Wavelet scale vs Fourier period (per-dimension)')
 
-    plt.suptitle('Learned multi-resolution features (HWF-PIKAN v2)')
+    plt.suptitle('Learned multi-resolution features (InvariantPIKAN v2)')
     plt.savefig(out_png, dpi=200)
     plt.close(fig)
 

@@ -1,3 +1,15 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 Fine-tune a pre-trained model specifically on US DLR data.
@@ -24,12 +36,12 @@ from torch.utils.tensorboard import SummaryWriter
 sys.path.append(str(Path(__file__).parent.parent))
 
 from core.data import VietnamDataset, InputNormalizer
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 from core.physics import IEEE738HeatBalance
 
 # Import loss from production training
 try:
-    from scripts.train_hwf_pikan_production import PhysicsInformedLoss
+    from scripts.train_invariant_pikan_production import PhysicsInformedLoss
 except Exception:
     from core.model import PhysicsInformedLoss
 
@@ -75,7 +87,7 @@ def main():
     
     print(f"Using model config: {model_config}")
     
-    model = create_hwf_pikan_v2(config=model_config)
+    model = create_invariant_pikan_v2(config=model_config)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
     model.train()

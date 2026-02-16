@@ -1,6 +1,18 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
-Train HWF-PIKAN with Learnable Per-Line Physics Parameters
+Train InvariantPIKAN with Learnable Per-Line Physics Parameters
 
 Extends the production training script to include:
 - LinePhysicsParams module for per-line physics
@@ -35,13 +47,13 @@ from torch.utils.tensorboard import SummaryWriter
 sys.path.append(str(Path(__file__).parent.parent))
 
 from core.data import VietnamDataset, InputNormalizer
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 from models.line_physics import LinePhysicsParams, LinePhysicsConfig, create_line_physics_for_dataset
 from core.physics_per_line import heat_balance_residual_per_line
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train HWF-PIKAN with per-line physics')
+    parser = argparse.ArgumentParser(description='Train InvariantPIKAN with per-line physics')
     
     # Data args
     parser.add_argument('--data-path', type=str, required=True,
@@ -353,8 +365,8 @@ def main():
     )
     
     # Create model
-    print("\n🏗️  Creating HWF-PIKAN v2 model...")
-    model = create_hwf_pikan_v2(config={})
+    print("\n🏗️  Creating InvariantPIKAN v2 model...")
+    model = create_invariant_pikan_v2(config={})
     
     if args.base_model:
         print(f"Loading base model from {args.base_model}")

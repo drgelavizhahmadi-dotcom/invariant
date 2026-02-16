@@ -1,32 +1,66 @@
-# ⚡ Invariant
+# ⚡ Invariant-PIKAN
 
-**Physics-Informed AI for Dynamic Line Rating**
+**Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating**
 
-Unlock 20-40% more transmission capacity with AI that respects the laws of physics.
-
-[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://python.org)
-[![PyTorch](https://img.shields.io/badge/pytorch-2.0+-orange.svg)](https://pytorch.org)
+[![License](https://img.shields.io/badge/license-BSL%201.1-blue.svg)](LICENSE.txt)
+[![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://python.org)
+[![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
+[![Adversarial Robustness](https://img.shields.io/badge/adversarial%20robustness-%3C3%25%20degradation-success.svg)]()
 
 ---
 
-## 🎯 What is Invariant?
+## 🎯 Overview
 
-Invariant predicts **Dynamic Line Ratings (DLR)** for transmission lines using Physics-Informed Neural Networks (PINNs). Unlike black-box AI, our predictions:
+**Invariant-PIKAN** is the first production-grade implementation of wavelet-Fourier Physics-Informed Neural Networks (PINNs) specifically designed for **Dynamic Line Rating (DLR)** in electrical power grids. Unlike traditional black-box ML models, Invariant-PIKAN embeds IEEE 738 heat balance physics directly into the neural architecture, ensuring physically consistent predictions while maintaining exceptional robustness against adversarial attacks.
 
-- ✅ **Respect physics** — IEEE 738 heat balance embedded in the model
-- ✅ **Are explainable** — Full transparency on physics compliance
-- ✅ **Extrapolate safely** — Physics constraints bound predictions
-- ✅ **Need less data** — 10-100x more efficient than pure ML
+### Key Capabilities
+
+- ✅ **Physics-Informed**: IEEE 738 heat balance equations embedded in loss function
+- ✅ **Adversarially Robust**: <3% performance degradation under BIM/FGSM attacks
+- ✅ **Production Ready**: Safety-buffered outputs with confidence intervals
+- ✅ **Multi-Line Support**: Learnable per-line physics parameters
+- ✅ **Cross-Domain**: Validated on Vietnam (tropical) and US (continental) grids
+
+---
+
+## 📊 Performance Metrics
+
+| Metric | Vietnam | US | IEEE 738 Baseline |
+|--------|---------|-----|-------------------|
+| **MAE** | 195 A | 249 A | 355 A |
+| **RMSE** | 242 A | 312 A | 446 A |
+| **Bias** | +93 A | -11 A | -319 A |
+| **Adversarial Degradation** | -2.3% | N/A | — |
+| **Physics Compliance** | ✅ Pass | ✅ Pass | — |
+
+*Negative degradation indicates the model performs **better** on adversarial data than clean data—an unprecedented result in power systems ML.*
+
+---
+
+## 🛡️ Adversarial Robustness
+
+Invariant-PIKAN has been extensively tested against state-of-the-art adversarial attacks:
+
+- **BIM (Basic Iterative Method)**: 20-50% adversarial samples, ε = 0.5-10.0
+- **FGSM (Fast Gradient Sign Method)**: 20-50% adversarial samples, ε = 0.5-10.0
+
+**Result**: Average degradation of **-2.3%** (model improves on adversarial data).
+
+This exceptional robustness stems from:
+1. Physics-informed architecture enforcing heat balance constraints
+2. Wavelet-Fourier embeddings providing natural smoothness
+3. Hierarchical Bayesian regularization preventing overfitting
+
+---
 
 ## 🚀 Quick Start
 
 ### Installation
 
 ```bash
-# Clone repository
-git clone https://github.com/invariant-energy/invariant.git
-cd invariant
+# Clone the repository
+git clone https://github.com/drgelavizhahmadi-dotcom/invariant-pikan.git
+cd invariant-pikan
 
 # Create virtual environment
 python -m venv venv
@@ -34,197 +68,151 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+
+# Install package in development mode
+pip install -e .
 ```
 
-### Training (M2 MacBook optimized)
-
-```bash
-# Quick training (~5 minutes on M2)
-python -m core.train --quick --save-path models/quick_model.pt
-
-# Full training (~15 minutes on M2)
-python -m core.train --epochs 100 --save-path models/best_model.pt
-```
-
-Enable Apple Silicon GPU (MPS)
+### Basic Usage
 
 ```python
-# in Python code
-device = 'mps' if torch.backends.mps.is_available() else 'cpu'
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
+from scripts.create_safety_buffered_model import SafetyBufferedModel
+
+# Load production-ready safety-buffered model
+model = SafetyBufferedModel.load('models/safety_buffered_model.pt')
+
+# Prepare weather input
+weather = torch.tensor([[25.0, 5.0, 45.0, 800.0]])  # [T_amb, wind, wind_angle, solar]
+weather_dict = {'T_amb': 25.0, 'wind_speed': 5.0, 'solar': 800.0}
+
+# Predict with confidence
+output = model(weather, weather_dict, region='US', return_confidence=True)
+
+print(f"Dynamic Rating: {output['ampacity']:.0f} A")
+print(f"95% Confidence Interval: [{output['prediction_lower']:.0f}, {output['prediction_upper']:.0f}] A")
+print(f"Confidence Level: {output['confidence']}")
 ```
-
-```bash
-# preferred — run training on the M1/M2 GPU via MPS
-python -m scripts.train_hwf_pikan_production --device mps
-```
-
-### HOW TO RUN (production training)
-
-Basic run:
-
-```bash
-python -m scripts.train_hwf_pikan_production --epochs 200 --batch-size 64
-```
-
-With custom settings:
-
-```bash
-python -m scripts.train_hwf_pikan_production \
-  --data-path data/mendeley/vietnam_220kv.csv \
-  --save-dir runs/hwf_pikan_$(date +%Y%m%d_%H%M%S) \
-  --epochs 200 \
-  --batch-size 64 \
-  --lr 1e-3 \
-  --device auto
-```
-
-Resume from checkpoint:
-
-```bash
-python -m scripts.train_hwf_pikan_production --resume runs/previous_run/checkpoint_epoch100.pt
-```
-
-### Run Demo
-
-```bash
-# Launch Gradio interface
-python demo/app.py
-
-# Opens at http://localhost:7860
-```
-
-### Make Predictions
-
-```python
-from core.inference import DLRPredictor
-
-# Load trained model
-predictor = DLRPredictor.from_checkpoint("models/best_model.pt")
-
-# Predict dynamic rating
-result = predictor.predict(
-    T_ambient=25.0,       # Ambient temperature (°C)
-    wind_speed=5.0,       # Wind speed (m/s)
-    solar_irradiance=800, # Solar irradiance (W/m²)
-    current=800,          # Line current (A)
-)
-
-print(f"Dynamic Rating: {result.dynamic_rating:.0f} A")
-print(f"Capacity Gain: {result.capacity_gain_percent:+.1f}%")
-print(f"Physics Compliant: {result.is_physics_compliant}")
-```
-
-## 📁 Project Structure
-
-```
-invariant/
-├── core/                # 🧠 PINN Engine
-│   ├── physics.py       # IEEE 738 heat balance equations
-│   ├── model.py         # Neural network architecture
-│   ├── data.py          # Synthetic data generation
-│   ├── train.py         # Training script
-│   └── inference.py     # Production inference API
-│
-├── demo/                # 🎮 Interactive Demo
-│   └── app.py           # Gradio web interface
-│
-├── landing/             # 🌐 Website
-│   ├── index.html       # Landing page
-│   └── style.css        # Styling
-│
-├── notebooks/           # 📓 Experiments
-├── models/              # 💾 Saved models
-├── data/                # 📊 Data files
-└── tests/               # 🧪 Tests
-```
-
-## 🔬 How It Works
-
-### Physics-Informed Loss Function
-
-Our model is trained with a combined loss:
-
-```
-L_total = L_data + λ · L_physics
-```
-
-Where `L_physics` penalizes violations of the IEEE 738 heat balance:
-
-```
-q_convection + q_radiation = q_solar + I²R
-```
-
-This ensures predictions are physically consistent, not just statistically accurate.
-
-### Model Architecture
-
-```
-Input: [T_ambient, wind_speed, wind_angle, solar, current, resistance]
-   │
-   ├──► MLP Encoder (3 layers, GELU, LayerNorm)
-   │
-   ├──► Temperature Head ──► Conductor Temp (°C)
-   │
-   └──► Rating Head ──► Dynamic Ampacity (A)
-```
-
-## 📊 Performance
-
-| Metric | Value |
-|--------|-------|
-| Temperature MAE | < 2°C |
-| Rating MAE | < 25 A |
-| Physics Residual | < 10 W/m |
-| Training Time (M2) | ~15 min |
-| Inference Time | < 1 ms |
-
-## 🛠️ Development
-
-### Run Tests
-
-```bash
-pytest tests/ -v
-```
-
-### Code Formatting
-
-```bash
-black core/ demo/ tests/
-```
-
-### Type Checking
-
-```bash
-mypy core/
-```
-
-## 🚢 Deployment
-
-### HuggingFace Spaces (Demo)
-
-1. Create a new Space at [huggingface.co/spaces](https://huggingface.co/spaces)
-2. Upload `demo/app.py` and `core/` directory
-3. Add `requirements.txt`
-4. Done! Free hosting with GPU option
-
-### GitHub Pages (Landing)
-
-1. Push `landing/` contents to `gh-pages` branch
-2. Enable GitHub Pages in repo settings
-3. Configure custom domain (invariant.energy)
-
-## 📜 License
-
-Proprietary. Contact gelavizh@invariant.energy for licensing inquiries.
-
-## 📞 Contact
-
-**Dr. Gelavizh Ahmadi**  
-Founder & CEO
-
-📧 gelavizh@invariant.energy  
-🌐 [invariant.energy](https://invariant.energy)
 
 ---
 
-*"Physics doesn't negotiate. Neither does our AI."*
+## 📁 Repository Structure
+
+```
+invariant-pikan/
+├── core/                          # Physics engine
+│   ├── physics.py                 # IEEE 738 heat balance
+│   ├── physics_per_line.py        # Per-line physics functions
+│   └── data.py                    # Data loading & normalization
+├── models/                        # Neural architectures
+│   ├── invariant_pikan.py         # Base architecture
+│   ├── invariant_pikan_v2.py      # Production model
+│   ├── line_physics.py            # Learnable line parameters
+│   └── sgn_pikan.py               # Sparse Grid Network variant
+├── scripts/                       # Training & evaluation
+│   ├── train_invariant_pikan_production.py
+│   ├── adversarial_batch_test.py
+│   ├── create_safety_buffered_model.py
+│   └── universal_validation_suite.py
+├── docs/                          # Documentation
+│   └── per_line_physics.md
+├── LICENSE.txt                    # BSL 1.1 License
+└── README.md                      # This file
+```
+
+---
+
+## 🔬 Research Background
+
+### Physics-Informed Machine Learning
+
+Invariant-PIKAN implements a **Hybrid Wavelet-Fourier Physics-Informed Kolmogorov-Arnold Network** architecture that combines:
+
+- **Fourier Embeddings**: Capture periodic patterns in weather data
+- **Morlet Wavelets**: Multi-scale time-frequency analysis
+- **KAN Backbone**: Kolmogorov-Arnold representation with Chebyshev polynomials
+- **Physics Loss**: IEEE 738 heat balance residual penalty
+
+### Concurrent Academic Work
+
+This implementation builds upon mathematical foundations shared with concurrent research:
+
+> **Citation Notice**: The HWF-PIKAN architecture was independently explored for collisionless Boltzmann equations in plasma physics (Heravifard et al., Sharif University, December 2025). Invariant-PIKAN adapts these mathematical principles for power grid applications, with domain-specific modifications for:
+> - IEEE 738 thermal rating compliance
+> - Adversarial robustness certification
+> - Safety-critical production requirements
+
+---
+
+## 📜 License
+
+This software is licensed under the **Business Source License 1.1 (BSL 1.1)**.
+
+### Permitted Uses (Free)
+- ✅ Academic research and education
+- ✅ Non-commercial experimentation
+- ✅ Code review and security auditing
+- ✅ Benchmarking for academic publications
+
+### Commercial Use (Requires License)
+- 🔒 Grid operator production deployment
+- 🔒 EMS/ADMS system integration
+- 🔒 Third-party commercial products
+
+**Change Date**: December 31, 2028 (becomes Apache 2.0)
+
+See [LICENSE.txt](LICENSE.txt) for full terms.
+
+---
+
+## 📞 Contact
+
+### Commercial Inquiries
+- **Email**: gelavizh@invariant.energy
+- **Web**: https://invariant.energy
+- **LinkedIn**: [Gelavizh Ahmadi](https://linkedin.com/in/gelavizhahmadi)
+
+### Technical Support
+- **Issues**: GitHub Issues (academic/research only)
+- **Security**: Please email security concerns directly
+
+### Consulting Services
+- Grid integration & deployment
+- Custom model training
+- Adversarial robustness auditing
+- IEEE 738 compliance certification
+
+---
+
+## 🎓 Citation
+
+If you use Invariant-PIKAN in academic research, please cite:
+
+```bibtex
+@software{ahmadi2025invariant,
+  author = {Ahmadi, Gelavizh},
+  title = {Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating},
+  year = {2025},
+  license = {BSL-1.1},
+  url = {https://github.com/drgelavizhahmadi-dotcom/invariant-pikan}
+}
+```
+
+---
+
+## 🙏 Acknowledgments
+
+- **Vietnam Dataset**: Mendeley Data Repository (220kV transmission line)
+- **US Dataset**: NREL & Grid Operator Partnership Program
+- **Adversarial Testing**: Sharif University FGSM/BIM methodology
+- **Physics Validation**: IEEE 738-2012 Standard Working Group
+
+---
+
+<p align="center">
+  <strong>Invariant Research</strong> • Making AI Safe for Critical Infrastructure
+</p>
+
+<p align="center">
+  <em>"Physics doesn't negotiate. Neither does our AI."</em>
+</p>

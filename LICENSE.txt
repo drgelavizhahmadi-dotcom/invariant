@@ -1,0 +1,110 @@
+Business Source License 1.1
+
+Parameters:
+- Licensor: Invariant Research (Gelavizh Ahmadi)
+- Licensed Work: Invariant-PIKAN (Adversarially-Robust Dynamic Line Rating System)
+- Change Date: 2028-12-31 (3 years from initial release)
+- Change License: Apache License, Version 2.0
+
+--------------------------------------------------------------------------------
+
+LICENSE TERMS AND CONDITIONS
+
+The Licensor hereby grants you the right to copy, modify, create derivative
+works, redistribute, and make non-production use of the Licensed Work. The
+Licensor may make an Additional Use Grant, above, permitting limited
+production use.
+
+Effective on the Change Date, or the fourth anniversary of the first publicly
+available distribution of a specific version of the Licensed Work under this
+License, whichever comes first, the Licensor hereby grants you rights under
+the terms of the Change License, and the rights granted in the paragraph
+above terminate.
+
+If your use of the Licensed Work does not comply with the requirements
+currently in effect as described in this License, you must purchase a
+commercial license from the Licensor, its affiliated entities, or authorized
+resellers, or you must refrain from using the Licensed Work.
+
+All copies of the original and modified Licensed Work, and derivative works
+of the Licensed Work, are subject to this License. This License applies
+separately for each version of the Licensed Work and the Change Date may vary
+for each version of the Licensed Work released by Licensor.
+
+You must conspicuously display this License on each original or modified copy
+of the Licensed Work. If you receive the Licensed Work in original or
+modified form from a third party, the terms and conditions set forth in this
+License apply to your use of that work.
+
+Any use of the Licensed Work in violation of this License will automatically
+terminate your rights under this License for the current and all other
+versions of the Licensed Work.
+
+This License does not grant you any right in any trademark or logo of
+Licensor or its affiliates.
+
+THE LICENSED WORK IS PROVIDED ON AN "AS IS" BASIS. LICENSOR PROVIDES NO
+WARRANTIES REGARDING THE LICENSED WORK, WHETHER EXPRESS, IMPLIED,
+STATUTORY, OR OTHERWISE, INCLUDING BUT NOT LIMITED TO WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NONINFRINGEMENT.
+
+--------------------------------------------------------------------------------
+
+ADDITIONAL USE GRANT
+
+The following production uses are permitted with a valid commercial license
+only:
+
+1. Deployment by electrical grid operators and utilities for Dynamic Line
+   Rating calculations in operational systems.
+
+2. Integration into commercial Energy Management Systems (EMS) or Advanced
+   Distribution Management Systems (ADMS).
+
+3. Use in third-party commercial products or services offering DLR
+   functionality.
+
+--------------------------------------------------------------------------------
+
+PERMITTED USES (Without Commercial License)
+
+The following uses are permitted without a commercial license:
+
+1. Academic research and educational purposes, provided proper attribution
+   is given to the original authors.
+
+2. Non-commercial personal projects and experimentation.
+
+3. Code review, security auditing, and contribution of bug fixes or
+   improvements (subject to Contributor License Agreement).
+
+4. Benchmarking and performance evaluation for academic publications
+   (with citation requirements).
+
+--------------------------------------------------------------------------------
+
+ATTRIBUTION REQUIREMENT
+
+Any publication, presentation, or distribution of this software or derivative
+works must include the following citation:
+
+"Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for
+Dynamic Line Rating. Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research.
+Licensed under BSL 1.1."
+
+--------------------------------------------------------------------------------
+
+DISCLAIMER
+
+This implementation is independent of concurrent academic work on HWF-PIKAN
+for plasma physics applications (Heravifard et al., Sharif University, 2025).
+The architectures share common mathematical foundations but target different
+application domains.
+
+For commercial licensing inquiries:
+Email: gelavizh@invariant.energy
+Web: https://invariant.energy
+
+--------------------------------------------------------------------------------
+
+Full BSL 1.1 text: https://mariadb.com/bsl11/

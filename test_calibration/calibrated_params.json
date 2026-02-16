@@ -1,0 +1,30 @@
+{
+  "resistance_factor": 0.5,
+  "emissivity": 0.9,
+  "absorptivity": 0.8044792059390589,
+  "final_error": 0.5201685853444499,
+  "success": true,
+  "message": "CONVERGENCE: NORM_OF_PROJECTED_GRADIENT_<=_PGTOL",
+  "metadata": {
+    "timestamp": "2026-02-13T21:45:02.916955",
+    "fixed_params": {
+      "diameter": 0.0275,
+      "temp_coefficient": 0.0039,
+      "resistance_20c": 0.00014085
+    },
+    "bounds": {
+      "resistance_factor": [
+        0.5,
+        2.0
+      ],
+      "emissivity": [
+        0.3,
+        0.9
+      ],
+      "absorptivity": [
+        0.3,
+        0.9
+      ]
+    }
+  }
+}

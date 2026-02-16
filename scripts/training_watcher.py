@@ -1,3 +1,15 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 training_watcher.py
@@ -326,7 +338,7 @@ def main():
         # determine alerts to fire
         alerts = should_notify(state, args.warn_epochs, args.stretch_target, alerted)
         for key, reason in alerts:
-            title = 'Training alert — HWF-PIKAN v2'
+            title = 'Training alert — InvariantPIKAN v2'
             msg = f"{key}: {reason} | epoch {ce}/{te} | best_amp_mae={best}" 
             send_macos_notification(title, msg)
             append_log(f"{key.upper()} | run={latest} | epoch={ce}/{te} | best_amp_mae={best} | reason={reason}")

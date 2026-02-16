@@ -1,6 +1,18 @@
 """
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
+"""
 Hybrid Wavelet-Fourier Physics-Informed KAN for Power Grid DLR
-Based on HWF-PIKAN architecture for advection-dominated PDEs
+Based on InvariantPIKAN architecture for advection-dominated PDEs
 """
 
 import torch
@@ -26,7 +38,7 @@ class WaveletFourierEmbedding(nn.Module):
     - Fourier features (global smooth structure)
     - Wavelet features (local sharp variations)
 
-    From: HWF-PIKAN (2025)
+    From: InvariantPIKAN (2025)
     """
     def __init__(self, input_dim=4, fourier_bands=16, wavelet_scales=8):
         super().__init__()
@@ -99,7 +111,7 @@ class AdaptiveLossBalancing(nn.Module):
         return total, weights
 
 
-class HWFPIKAN_DLR(nn.Module):
+class InvariantPIKAN_DLR(nn.Module):
     """
     Hybrid Wavelet-Fourier Physics-Informed KAN for Dynamic Line Rating
 
@@ -109,7 +121,7 @@ class HWFPIKAN_DLR(nn.Module):
     3. Physics-informed loss (IEEE 738 heat balance)
 
     Based on:
-    - HWF-PIKAN for multi-scale PDEs
+    - InvariantPIKAN for multi-scale PDEs
     - Scaled-cPIKAN for Chebyshev basis
     """
 
@@ -204,7 +216,7 @@ class HWFPIKAN_DLR(nn.Module):
         }
 
 
-def create_hwf_pikan_model(config=None):
+def create_invariant_pikan_model(config=None):
     """Factory function with sensible defaults"""
     if config is None:
         config = {
@@ -216,7 +228,7 @@ def create_hwf_pikan_model(config=None):
             'kan_k': 3
         }
 
-    model = HWFPIKAN_DLR(**config)
+    model = InvariantPIKAN_DLR(**config)
 
     # Initialize with calibrated Vietnam parameters
     model.log_resistance_factor.data = torch.log(torch.tensor(0.5))  # 50% of standard

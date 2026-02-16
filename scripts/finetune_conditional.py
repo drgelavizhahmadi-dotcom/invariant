@@ -1,8 +1,20 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 finetune_conditional.py
 
-Fine-tune a pre-trained HWF-PIKAN v2 model on specific data subsets
+Fine-tune a pre-trained InvariantPIKAN v2 model on specific data subsets
 defined by conditional filters (e.g., high-wind or afternoon conditions).
 
 This script loads a base model, filters the training dataset based on
@@ -11,7 +23,7 @@ performance in high-error regions.
 
 Usage:
     python -m scripts.finetune_conditional \
-        --base-model runs/hwf_pikan_production_20260214_110318/final_model.pt \
+        --base-model runs/invariant_pikan_production_20260214_110318/final_model.pt \
         --condition "wind_speed > 10 or (hour >= 12 and hour <= 18)" \
         --epochs 50 \
         --lr 1e-4
@@ -35,12 +47,12 @@ from torch.utils.tensorboard import SummaryWriter
 
 # Project imports
 from core.data import VietnamDataset, InputNormalizer
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 from core.physics import IEEE738HeatBalance
 
 # Use the same PhysicsInformedLoss as production training
 try:
-    from scripts.train_hwf_pikan_v2 import PhysicsInformedLoss
+    from scripts.train_invariant_pikan_v2 import PhysicsInformedLoss
 except Exception:
     from core.model import PhysicsInformedLoss
 
@@ -113,7 +125,7 @@ def filter_dataset_by_condition(dataset, condition_str: str) -> Subset:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fine-tune HWF-PIKAN v2 on conditional subsets")
+    parser = argparse.ArgumentParser(description="Fine-tune InvariantPIKAN v2 on conditional subsets")
     parser.add_argument("--base-model", type=str, required=True,
                        help="Path to base model checkpoint")
     parser.add_argument("--condition", type=str, required=True,
@@ -166,7 +178,7 @@ def main():
     print(f"Using model config: {model_config}")
 
     # Create model with config
-    model = create_hwf_pikan_v2(config=model_config)
+    model = create_invariant_pikan_v2(config=model_config)
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
     model.train()

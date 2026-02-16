@@ -1,0 +1,13 @@
+US DLR Validation Summary
+========================
+
+IMPORTANT: This validation uses synthetic weather data.
+For real validation, obtain matching weather data from:
+- WIND Toolkit: https://www.nrel.gov/grid/wind-toolkit.html
+- NSRDB: https://nsrdb.nrel.gov/
+- NOAA NCDC: https://www.ncdc.noaa.gov/
+
+Model: final_model.pt
+MAE vs Physics: 471.83 A
+RMSE vs Physics: 585.69 A
+Samples: 1000

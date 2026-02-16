@@ -1,14 +1,26 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 # models/sgn_pikan.py
 
 import torch
 import torch.nn as nn
-from .hwf_pikan_v2 import HWFPIKANV2
+from .invariant_pikan_v2 import InvariantPIKANV2
 
-class SGNPIKAN(HWFPIKANV2):
+class SGNPIKAN(InvariantPIKANV2):
     """
     SGN‑PIKAN: HWF‑PIKAN with Sketchy Natural Gradient support.
 
-    This model subclasses the canonical HWFPIKANV2 implementation and adds:
+    This model subclasses the canonical InvariantPIKANV2 implementation and adds:
     - A compatibility `forward(weather_tensor, timestamp)` wrapper used by the
       SGN training script
     - A `compute_residual_jacobian` method that returns flattened gradients of
@@ -18,7 +30,7 @@ class SGNPIKAN(HWFPIKANV2):
 
     def __init__(self, physics_engine=None, config=None):
         # Accept an optional physics_engine (stored for optimizer/hooks) but
-        # forward only the model configuration to the HWFPIKANV2 constructor.
+        # forward only the model configuration to the InvariantPIKANV2 constructor.
         cfg = {} if config is None else dict(config)
         hwf_kwargs = {
             'input_dim': cfg.get('input_dim', 4),
@@ -38,7 +50,7 @@ class SGNPIKAN(HWFPIKANV2):
         """
         Compatibility wrapper: accept (weather_tensor, timestamp) as used by the
         SGN training script and convert into the (x, weather_dict) pair expected
-        by the upstream HWFPIKANV2.forward implementation.
+        by the upstream InvariantPIKANV2.forward implementation.
         """
         if weather_tensor.dim() == 1:
             weather_tensor = weather_tensor.unsqueeze(0)

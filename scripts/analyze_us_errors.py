@@ -1,3 +1,15 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python
 """
 Analyze US test errors by condition (wind speed, temperature, etc.)
@@ -13,7 +25,7 @@ from pathlib import Path
 import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 from core.data import VietnamDataset, USDataset
 from torch.utils.data import Subset, DataLoader
 
@@ -88,7 +100,7 @@ def main():
     if isinstance(ckpt, dict) and 'config' in ckpt and isinstance(ckpt['config'], dict):
         model_cfg = ckpt['config'].get('model', None)
 
-    model = create_hwf_pikan_v2(config=model_cfg) if model_cfg is not None else create_hwf_pikan_v2({})
+    model = create_invariant_pikan_v2(config=model_cfg) if model_cfg is not None else create_invariant_pikan_v2({})
     model.load_state_dict(ckpt['model_state_dict'])
     model.to(device)
     model.eval()

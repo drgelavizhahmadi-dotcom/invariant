@@ -1,11 +1,23 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
-train_hwf_pikan_production.py
+train_invariant_pikan_production.py
 
-Comprehensive, production-ready training script for HWF-PIKAN v2 (Dynamic Line Rating).
+Comprehensive, production-ready training script for InvariantPIKAN v2 (Dynamic Line Rating).
 
 Features implemented (per your specification):
-- HWF-PIKAN v2 architecture (reuse `models.hwf_pikan_v2.create_hwf_pikan_v2`)
+- InvariantPIKAN v2 architecture (reuse `models.invariant_pikan_v2.create_invariant_pikan_v2`)
 - Multi-scale embedding (learnable Fourier freqs + Morlet wavelets)
 - KAN backbone (Chebyshev style, grid=5, k=3)
 - Physics-informed loss using IEEE 738 heat balance
@@ -16,7 +28,7 @@ Features implemented (per your specification):
 - Early stopping, NaN-handling, gradient clipping, robust error handling
 
 Run example:
-    python -m scripts.train_hwf_pikan_production --epochs 200 --batch-size 64
+    python -m scripts.train_invariant_pikan_production --epochs 200 --batch-size 64
 
 """
 import argparse
@@ -41,11 +53,11 @@ from torch.utils.tensorboard import SummaryWriter
 
 # Project imports (reuse model + dataset + physics)
 from core.data import VietnamDataset, USDataset, InputNormalizer
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 from core.physics import IEEE738HeatBalance
 # Prefer the training-compatible PhysicsInformedLoss (has __call__(preds, targets, weather, return_components))
 try:
-    from scripts.train_hwf_pikan_v2 import PhysicsInformedLoss
+    from scripts.train_invariant_pikan_v2 import PhysicsInformedLoss
 except Exception:
     # Fall back to core.model.PhysicsInformedLoss and wrap it to the expected API
     from core.model import PhysicsInformedLoss as CorePhysicsInformedLoss
@@ -268,8 +280,8 @@ def validate_wind_gust_response(model, val_loader, device):
 # ----------------------------- Training Core ------------------------------
 
 def build_model(cfg: Dict) -> nn.Module:
-    """Create HWF-PIKAN v2 model with requested hyperparameters and per-dim scale priors."""
-    model = create_hwf_pikan_v2(config=cfg)
+    """Create InvariantPIKAN v2 model with requested hyperparameters and per-dim scale priors."""
+    model = create_invariant_pikan_v2(config=cfg)
 
     # Per-dimension wavelet specialization initialization (temperature slow, wind fast, solar medium, current slow)
     # mapping indices -> rough semantic order assumed by dataset: [T_ambient, wind_speed, wind_angle, solar_irradiance, current]
@@ -914,10 +926,10 @@ def train(
 
 # ----------------------------- CLI ---------------------------------------
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Production training for HWF-PIKAN v2')
+    parser = argparse.ArgumentParser(description='Production training for InvariantPIKAN v2')
     parser.add_argument('--data-path', default='data/mendeley/vietnam_220kv.csv')
     parser.add_argument('--us-data', default=None, help='Path to US training HDF5 file (if provided, uses US dataset instead of Vietnam)')
-    parser.add_argument('--save-dir', default='runs/hwf_pikan_production_' + datetime.utcnow().strftime('%Y%m%d_%H%M%S'))
+    parser.add_argument('--save-dir', default='runs/invariant_pikan_production_' + datetime.utcnow().strftime('%Y%m%d_%H%M%S'))
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch-size', type=int, default=128)
     parser.add_argument('--lr', type=float, default=1e-3)

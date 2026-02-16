@@ -1,8 +1,20 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 training_dashboard.py
 
-Real-time training dashboard for HWF-PIKAN v2.
+Real-time training dashboard for InvariantPIKAN v2.
 - Reads latest checkpoint or history.csv from `runs/`
 - Plots 4 subplots (train loss, val amp MAE, physics weight, temp MAE)
 - Adds annotations (best MAE, improvement vs baseline, ETA)
@@ -254,7 +266,7 @@ def plot_dashboard(run_dir: str, baseline: float = 308.0, save_copy_to_cwd: bool
 
     # Start plotting
     fig, axes = plt.subplots(2, 2, figsize=(14, 9))
-    plt.suptitle('HWF-PIKAN v2 — Training Progress', fontsize=16)
+    plt.suptitle('InvariantPIKAN v2 — Training Progress', fontsize=16)
 
     # Top-left: Training loss
     ax = axes[0, 0]
@@ -354,7 +366,7 @@ def plot_dashboard(run_dir: str, baseline: float = 308.0, save_copy_to_cwd: bool
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Real-time training dashboard for HWF-PIKAN v2')
+    parser = argparse.ArgumentParser(description='Real-time training dashboard for InvariantPIKAN v2')
     parser.add_argument('--runs-dir', default='runs', help='Root runs directory')
     parser.add_argument('--baseline', type=float, default=308.0, help='Ampacity MAE baseline (A)')
     parser.add_argument('--interval', type=int, default=300, help='Refresh interval in seconds when looping')

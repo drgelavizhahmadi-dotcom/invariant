@@ -1,8 +1,20 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 validate_best_model.py
 
-Comprehensive validation utility for the HWF-PIKAN v2 project.
+Comprehensive validation utility for the InvariantPIKAN v2 project.
 
 Behavior:
 - Finds the latest training run and its `best_model.pt` (falls back to `models/best_model.pt`).
@@ -178,7 +190,7 @@ def load_predictor_from_checkpoint(ckpt: str):
 
     # 0) Try HWF_PIKAN_V2 model
     try:
-        from models.hwf_pikan_v2 import create_hwf_pikan_v2
+        from models.invariant_pikan_v2 import create_invariant_pikan_v2
         import torch
         model_cfg = {
             'input_dim': 4,
@@ -188,7 +200,7 @@ def load_predictor_from_checkpoint(ckpt: str):
             'kan_grid': 3,
             'kan_k': 3,
         }
-        model = create_hwf_pikan_v2(config=model_cfg)
+        model = create_invariant_pikan_v2(config=model_cfg)
         checkpoint = torch.load(ckpt, map_location='cpu')
         model.load_state_dict(checkpoint['model_state_dict'])
         model.eval()
@@ -267,7 +279,7 @@ def load_predictor_from_checkpoint(ckpt: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Validate best HWF-PIKAN v2 model")
+    parser = argparse.ArgumentParser(description="Validate best InvariantPIKAN v2 model")
     parser.add_argument("--runs-dir", default="runs")
     parser.add_argument("--model-path", default=None)
     parser.add_argument("--data-path", default="data/mendeley/vietnam_220kv.csv")

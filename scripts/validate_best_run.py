@@ -1,8 +1,20 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 validate_best_run.py
 
-Comprehensive validation for latest HWF-PIKAN v2 training run.
+Comprehensive validation for latest InvariantPIKAN v2 training run.
 
 - Loads best_model.pt from the most recent run (falls back to models/best_model.pt)
 - Uses Vietnam CSV for test set (temporal 20% holdout)

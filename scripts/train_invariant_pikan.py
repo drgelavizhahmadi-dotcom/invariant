@@ -1,5 +1,17 @@
 """
-Train HWF-PIKAN model for Dynamic Line Rating
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
+"""
+Train InvariantPIKAN model for Dynamic Line Rating
 Advanced multi-resolution physics-informed neural network
 """
 
@@ -18,25 +30,25 @@ import argparse
 import sys
 sys.path.append('.')
 
-from models.hwf_pikan import create_hwf_pikan_model
+from models.invariant_pikan import create_invariant_pikan_model
 from core.data import VietnamDataset
 from core.physics import physics_loss_fn
 
 
-def train_hwf_pikan_model(
+def train_invariant_pikan_model(
     vietnam_csv='data/mendeley/vietnam_220kv.csv',
     batch_size=32,
     epochs=200,
     device='cpu',
-    save_path='models/hwf_pikan_dlr.pt'
+    save_path='models/invariant_pikan_dlr.pt'
 ):
     """
-    Two-stage training protocol for HWF-PIKAN:
+    Two-stage training protocol for InvariantPIKAN:
     Stage 1: Adam for initial convergence (first 100 epochs)
     Stage 2: L-BFGS for fine-tuning (remaining epochs)
     """
 
-    print("🚀 Training HWF-PIKAN DLR Model (Two-Stage Protocol)")
+    print("🚀 Training InvariantPIKAN DLR Model (Two-Stage Protocol)")
     print("=" * 60)
 
     device = torch.device(device)
@@ -53,8 +65,8 @@ def train_hwf_pikan_model(
     print(f"Ampacity range: {vietnam_dataset.ampacity.min():.0f} - {vietnam_dataset.ampacity.max():.0f} A")
 
     # Create model
-    print("Creating HWF-PIKAN model...")
-    model = create_hwf_pikan_model()
+    print("Creating InvariantPIKAN model...")
+    model = create_invariant_pikan_model()
     model = model.to(device)
 
     # Optimizer and scheduler
@@ -182,7 +194,7 @@ def train_hwf_pikan_model(
     training_time = time.time() - start_time
     print(f"⏱️  Training completed in {training_time:.1f} seconds")
     # Save trained model
-    print(f"\n💾 Saving HWF-PIKAN model to {save_path}...")
+    print(f"\n💾 Saving InvariantPIKAN model to {save_path}...")
     torch.save({
         'model_state_dict': model.state_dict(),
         'config': {
@@ -198,22 +210,22 @@ def train_hwf_pikan_model(
         'training_time': training_time
     }, save_path)
 
-    print("✅ HWF-PIKAN training completed!")
+    print("✅ InvariantPIKAN training completed!")
 
     return model, history
 
 
-def evaluate_hwf_pikan_model(
-    model_path='models/hwf_pikan_dlr.pt',
+def evaluate_invariant_pikan_model(
+    model_path='models/invariant_pikan_dlr.pt',
     vietnam_csv='data/mendeley/vietnam_220kv.csv',
     n_samples=None,
     device='cpu'
 ):
     """
-    Evaluate trained HWF-PIKAN model
+    Evaluate trained InvariantPIKAN model
     """
 
-    print("🔍 Evaluating HWF-PIKAN Model")
+    print("🔍 Evaluating InvariantPIKAN Model")
     print("=" * 40)
 
     device = torch.device(device)
@@ -222,7 +234,7 @@ def evaluate_hwf_pikan_model(
     print(f"Loading model from {model_path}...")
     checkpoint = torch.load(model_path, map_location=device, weights_only=False)
 
-    model = create_hwf_pikan_model()
+    model = create_invariant_pikan_model()
     model.load_state_dict(checkpoint['model_state_dict'])
     model = model.to(device)
     model.eval()
@@ -320,7 +332,7 @@ def evaluate_hwf_pikan_model(
     }
 
     # Print results
-    print("\n📊 HWF-PIKAN Evaluation Results:")
+    print("\n📊 InvariantPIKAN Evaluation Results:")
     print(f"🌡️  Temperature - MAE: {metrics['temperature']['mae']:.2f}°C, RMSE: {metrics['temperature']['rmse']:.2f}°C")
     print(f"⚡ Ampacity - MAE: {metrics['ampacity']['mae']:.1f}A, RMSE: {metrics['ampacity']['rmse']:.1f}A")
     print(f"🔬 Physics Residual - Mean: {metrics['physics_consistency']['mean_residual']:.4f}")
@@ -330,14 +342,14 @@ def evaluate_hwf_pikan_model(
 
 def main():
     """Main training function"""
-    parser = argparse.ArgumentParser(description='Train HWF-PIKAN DLR Model')
+    parser = argparse.ArgumentParser(description='Train InvariantPIKAN DLR Model')
     parser.add_argument('--vietnam-csv', type=str, default='data/mendeley/vietnam_220kv.csv',
                        help='Path to Vietnam dataset')
     parser.add_argument('--batch-size', type=int, default=32, help='Training batch size')
     parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
     parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
     parser.add_argument('--device', type=str, default='cpu', help='Device for training')
-    parser.add_argument('--save-path', type=str, default='models/hwf_pikan_dlr.pt',
+    parser.add_argument('--save-path', type=str, default='models/invariant_pikan_dlr.pt',
                        help='Path to save trained model')
     parser.add_argument('--n-samples', type=int, default=None,
                        help='Number of samples to evaluate (None = all)')
@@ -348,7 +360,7 @@ def main():
 
     if args.eval_only:
         # Only evaluate
-        metrics, predictions, targets, conditions = evaluate_hwf_pikan_model(
+        metrics, predictions, targets, conditions = evaluate_invariant_pikan_model(
             model_path=args.save_path,
             vietnam_csv=args.vietnam_csv,
             n_samples=args.n_samples,
@@ -356,7 +368,7 @@ def main():
         )
     else:
         # Train and evaluate
-        model, history = train_hwf_pikan_model(
+        model, history = train_invariant_pikan_model(
             vietnam_csv=args.vietnam_csv,
             batch_size=args.batch_size,
             epochs=args.epochs,
@@ -365,7 +377,7 @@ def main():
         )
 
         # Evaluate trained model
-        metrics, predictions, targets, conditions = evaluate_hwf_pikan_model(
+        metrics, predictions, targets, conditions = evaluate_invariant_pikan_model(
             model_path=args.save_path,
             vietnam_csv=args.vietnam_csv,
             n_samples=args.n_samples,
@@ -374,10 +386,10 @@ def main():
 
     # Save results
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
-    results_file = f"reports/hwf_pikan_results_{timestamp}.json"
+    results_file = f"reports/invariant_pikan_results_{timestamp}.json"
 
     final_results = {
-        'experiment': 'hwf_pikan_dlr',
+        'experiment': 'invariant_pikan_dlr',
         'timestamp': timestamp,
         'evaluation': metrics,
         'config': vars(args)
@@ -387,7 +399,7 @@ def main():
         json.dump(final_results, f, indent=2, default=str)
 
     print(f"💾 Detailed results saved to {results_file}")
-    print("\n✅ HWF-PIKAN experiment completed!")
+    print("\n✅ InvariantPIKAN experiment completed!")
 
 
 if __name__ == "__main__":

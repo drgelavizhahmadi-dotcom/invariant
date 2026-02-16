@@ -1,6 +1,18 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python
 """
-train_hwf_pikan_v2.py - Production Training for HWF-PIKAN DLR
+train_invariant_pikan_v2.py - Production Training for InvariantPIKAN DLR
 
 Features:
 - Adaptive loss balancing (based on gradient magnitudes)
@@ -31,7 +43,7 @@ sys.path.append(str(Path(__file__).parent))
 # Import your modules
 from core.data import VietnamDataset
 from core.physics import ieee738_analytical, IEEE738HeatBalance  # Your physics engine
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 
 
 class AdaptiveLossBalancer:
@@ -77,7 +89,7 @@ class AdaptiveLossBalancer:
 
 class PhysicsInformedLoss:
     """
-    Composite loss function for HWF-PIKAN:
+    Composite loss function for InvariantPIKAN:
     1. Temperature MSE (supervised)
     2. Ampacity MSE (supervised)
     3. Physics residual (unsupervised)
@@ -390,9 +402,9 @@ def validate_epoch(model, loader, loss_fn, device):
     }
 
 
-def train_hwf_pikan_v2(config):
+def train_invariant_pikan_v2(config):
     """
-    Complete training pipeline for HWF-PIKAN v2
+    Complete training pipeline for InvariantPIKAN v2
 
     Config keys:
         data_path: path to Vietnam dataset
@@ -448,8 +460,8 @@ def train_hwf_pikan_v2(config):
     print(f"Test samples: {len(test_dataset)}")
 
     # Create model
-    print("🔧 Creating HWF-PIKAN v2...")
-    model = create_hwf_pikan_v2(
+    print("🔧 Creating InvariantPIKAN v2...")
+    model = create_invariant_pikan_v2(
         physics_engine=ieee738_analytical,
         config=config.get('model_config', {})
     ).to(device)
@@ -714,6 +726,6 @@ if __name__ == "__main__":
     }
 
     # Train
-    model, history, run_dir = train_hwf_pikan_v2(config)
+    model, history, run_dir = train_invariant_pikan_v2(config)
 
     print(f"\n🎯 To monitor training: tensorboard --logdir {run_dir}")

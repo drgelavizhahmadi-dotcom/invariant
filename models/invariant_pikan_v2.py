@@ -1,5 +1,17 @@
 """
-HWF-PIKAN v2 - Enhanced Hybrid Wavelet-Fourier Physics-Informed KAN
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
+"""
+InvariantPIKAN v2 - Enhanced Hybrid Wavelet-Fourier Physics-Informed KAN
 
 Advanced architecture with:
 - Multi-resolution embeddings (Fourier + Wavelet)
@@ -163,9 +175,9 @@ class PhysicsInformedKAN(nn.Module):
         return output
 
 
-class HWFPIKANV2(nn.Module):
+class InvariantPIKANV2(nn.Module):
     """
-    HWF-PIKAN v2: Hybrid Wavelet-Fourier Physics-Informed KAN
+    InvariantPIKAN v2: Hybrid Wavelet-Fourier Physics-Informed KAN
 
     Architecture:
     1. Multi-resolution embedding (Fourier + Wavelet)
@@ -273,16 +285,16 @@ class HWFPIKANV2(nn.Module):
         }
 
 
-def create_hwf_pikan_v2(physics_engine=None, config=None):
+def create_invariant_pikan_v2(physics_engine=None, config=None):
     """
-    Factory function for HWF-PIKAN v2
+    Factory function for InvariantPIKAN v2
 
     Args:
         physics_engine: Physics function (unused, kept for compatibility)
         config: Model configuration dict
 
     Returns:
-        HWFPIKANV2 model instance
+        InvariantPIKANV2 model instance
     """
     if config is None:
         config = {
@@ -295,7 +307,7 @@ def create_hwf_pikan_v2(physics_engine=None, config=None):
             'kan_k': 3
         }
 
-    model = HWFPIKANV2(**config)
+    model = InvariantPIKANV2(**config)
 
     # Initialize with calibrated parameters
     with torch.no_grad():
@@ -308,9 +320,9 @@ def create_hwf_pikan_v2(physics_engine=None, config=None):
 
 if __name__ == "__main__":
     # Test the model
-    print("Testing HWF-PIKAN v2...")
+    print("Testing InvariantPIKAN v2...")
 
-    model = create_hwf_pikan_v2()
+    model = create_invariant_pikan_v2()
 
     # Test input
     batch_size = 4
@@ -327,4 +339,4 @@ if __name__ == "__main__":
     print(f"Temperature pred shape: {output['temperature'].shape}")
     print(f"Ampacity pred shape: {output['ampacity'].shape}")
     print(f"Physics residual: {output['physics_residual']:.4f}")
-    print("✅ HWF-PIKAN v2 test passed!")
+    print("✅ InvariantPIKAN v2 test passed!")

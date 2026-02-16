@@ -1,3 +1,15 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 import torch
 import h5py
 import numpy as np
@@ -7,7 +19,7 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 
 from core.physics import IEEE738HeatBalance
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 
 def validate_on_us_dlr(model_path, us_dlr_path, output_dir='us_validation', weather_csv=None):
     """
@@ -62,7 +74,7 @@ def validate_on_us_dlr(model_path, us_dlr_path, output_dir='us_validation', weat
         print("Creating synthetic validation data for demonstration...")
 
     # Load your model
-    print("🔧 Loading your HWF-PIKAN model...")
+    print("🔧 Loading your InvariantPIKAN model...")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # Use the same model configuration as the production training
@@ -74,7 +86,7 @@ def validate_on_us_dlr(model_path, us_dlr_path, output_dir='us_validation', weat
         'kan_grid': 3,
         'kan_k': 3,
     }
-    model = create_hwf_pikan_v2(config=model_config)
+    model = create_invariant_pikan_v2(config=model_config)
     
     # Load checkpoint (may contain full training state or just state_dict)
     checkpoint = torch.load(model_path, map_location=device, weights_only=False)
@@ -223,7 +235,7 @@ def validate_on_us_dlr(model_path, us_dlr_path, output_dir='us_validation', weat
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description='Validate HWF-PIKAN model on US DLR dataset')
+    parser = argparse.ArgumentParser(description='Validate InvariantPIKAN model on US DLR dataset')
     parser.add_argument('--model-path', type=str, required=True,
                        help='Path to trained model checkpoint')
     parser.add_argument('--us-dlr-path', type=str, default='data/us_dlr_2007_2013.h5',

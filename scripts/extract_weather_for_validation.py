@@ -1,9 +1,21 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 extract_weather_for_validation.py
 
 Extract weather data for US transmission lines to enable proper validation
-of your HWF-PIKAN model against the US DLR dataset.
+of your InvariantPIKAN model against the US DLR dataset.
 
 This script shows how to:
 1. Load US transmission line locations from HIFLD dataset

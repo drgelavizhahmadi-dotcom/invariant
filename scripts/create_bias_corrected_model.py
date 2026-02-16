@@ -1,3 +1,15 @@
+"""
+Invariant-PIKAN: Adversarially-Robust Physics-Informed Neural Networks for Dynamic Line Rating
+Copyright (C) 2025 Gelavizh Ahmadi / Invariant Research
+
+This software is licensed under the Business Source License 1.1 (BSL 1.1).
+Commercial production use requires a separate license agreement.
+See LICENSE.txt for full terms.
+
+DISCLAIMER: This implementation is independent of concurrent academic work on
+HWF-PIKAN for plasma physics (Heravifard et al., Sharif University, 2025).
+"""
+
 #!/usr/bin/env python3
 """
 Create a bias-corrected model wrapper for US DLR deployment.
@@ -14,7 +26,7 @@ import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from models.hwf_pikan_v2 import create_hwf_pikan_v2
+from models.invariant_pikan_v2 import create_invariant_pikan_v2
 
 
 class BiasCorrectedModel(nn.Module):
@@ -122,7 +134,7 @@ class BiasCorrectedModel(nn.Module):
         
         # Recreate base model
         model_cfg = checkpoint.get('metadata', {}).get('model_config', {})
-        base_model = create_hwf_pikan_v2(config=model_cfg)
+        base_model = create_invariant_pikan_v2(config=model_cfg)
         base_model.load_state_dict(checkpoint['base_model_state'])
         
         # Create wrapper
@@ -234,7 +246,7 @@ def main():
     checkpoint = torch.load(args.base_model, map_location=device, weights_only=False)
     model_cfg = checkpoint.get('config', {}).get('model', None) if isinstance(checkpoint, dict) and 'config' in checkpoint else {}
     
-    base_model = create_hwf_pikan_v2(config=model_cfg)
+    base_model = create_invariant_pikan_v2(config=model_cfg)
     base_model.load_state_dict(checkpoint['model_state_dict'])
     base_model = base_model.to(device)
     base_model.eval()
