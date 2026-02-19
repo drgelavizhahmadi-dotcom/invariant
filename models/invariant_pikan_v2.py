@@ -227,7 +227,7 @@ class InvariantPIKANV2(nn.Module):
 
     def compute_physics_residual(self, T_pred, I_pred, weather):
         """
-        Compute physics residual for training
+        Compute per-sample physics residual.
 
         Args:
             T_pred: Predicted temperature [batch]
@@ -235,7 +235,7 @@ class InvariantPIKANV2(nn.Module):
             weather: dict with weather tensors
 
         Returns:
-            residual: Physics constraint violation [batch]
+            residual: Physics constraint violation per sample [batch]
         """
         # Use analytical physics model
         T_physics, _ = ieee738_analytical(
@@ -246,10 +246,113 @@ class InvariantPIKANV2(nn.Module):
             **self.get_physics_params()
         )
 
-        # Residual: how well does prediction satisfy physics?
+        # Per-sample residual: how well does prediction satisfy physics?
         residual = torch.abs(T_pred - T_physics)
 
-        return residual.mean()
+        return residual  # (batch_size,) — per-sample, caller decides reduction
+
+    def explain_prediction(self, x, I_pred, T_conductor=75.0):
+        """
+        AI Act audit trail: decomposes each prediction into IEEE 738
+        heat balance components, identifies binding thermal constraint.
+
+        Uses the MODEL'S LEARNED physics parameters (emissivity, absorptivity,
+        resistance_factor) — not fixed defaults. This is what makes the
+        explanation model-specific: two models with different learned params
+        will produce different decompositions for the same input.
+
+        Args:
+            x: [batch, 3] weather features [temperature, wind_speed, solar_irradiance]
+            I_pred: [batch] predicted ampacity (A)
+            T_conductor: conductor temperature limit (°C), default 75.0
+
+        Returns:
+            dict with per-sample explanation:
+                q_convective:       (N,) cooling from wind [W/m]
+                q_radiative:        (N,) cooling from radiation [W/m]
+                q_solar:            (N,) heating from solar irradiance [W/m]
+                q_joule:            (N,) resistive heating from current [W/m]
+                binding_constraint: (N,) 0=convection-limited, 1=radiation-limited
+                physics_residual:   (N,) |q_dissipated - q_gained| per sample
+                convective_fraction:(N,) fraction of total cooling from convection
+        """
+        params = self.get_physics_params()
+
+        # Extract weather features (matches training pipeline order)
+        T_amb = x[:, 0]           # ambient temperature (°C)
+        wind_speed = x[:, 1]      # wind speed (m/s)
+        solar_irradiance = x[:, 2]  # GHI (W/m²)
+
+        # Conductor constants (Drake ACSR)
+        D = 0.02814               # diameter (m)
+        R_ref = 7.283e-5          # resistance at 25°C (Ohm/m)
+        alpha_R = 0.00403         # temp coefficient (1/°C)
+        sigma = 5.67e-8           # Stefan-Boltzmann (W/(m²·K⁴))
+        pi = torch.tensor(torch.pi)
+
+        # Learned parameters
+        emissivity = params['emissivity']
+        absorptivity = params['absorptivity']
+        resistance_factor = params['resistance_factor']
+
+        T_c = torch.full_like(T_amb, T_conductor)
+
+        # --- Convective cooling (IEEE 738 forced convection) ---
+        rho_air = 1.1             # kg/m³
+        mu_air = 1.96e-5          # Pa·s
+        k_air = 0.0277            # W/(m·K)
+        V_w = torch.clamp(wind_speed, min=1e-4)
+        Re = rho_air * V_w * D / mu_air
+
+        # Low-Re: Churchill-Bernstein; High-Re: Morgan
+        Pr = 0.71
+        Nu_low = 0.3 + (
+            0.62 * torch.pow(Re, 0.5) * (Pr ** (1.0 / 3.0))
+        ) / ((1.0 + (0.4 / Pr) ** (2.0 / 3.0)) ** 0.25)
+        Nu_morgan = 0.583 * torch.pow(Re, 0.471)
+        Nu = torch.where(Re < 1000.0, Nu_low, Nu_morgan)
+
+        q_convective = pi * k_air * Nu * (T_c - T_amb)
+
+        # --- Radiative cooling (Stefan-Boltzmann) ---
+        T_c_K = T_c + 273.15
+        T_a_K = T_amb + 273.15
+        q_radiative = pi * D * emissivity * sigma * (
+            torch.pow(T_c_K, 4) - torch.pow(T_a_K, 4)
+        )
+
+        # --- Solar heating ---
+        q_solar = absorptivity * solar_irradiance * D
+
+        # --- Joule heating (I²R with learned resistance factor) ---
+        R_T = R_ref * resistance_factor * (1 + alpha_R * (T_conductor - 25.0))
+        q_joule = I_pred ** 2 * R_T
+
+        # --- Binding constraint ---
+        cooling_total = q_convective + q_radiative
+        binding = torch.where(
+            q_convective < q_radiative,
+            torch.zeros_like(q_convective),   # 0 = convection-limited
+            torch.ones_like(q_radiative)       # 1 = radiation-limited
+        )
+
+        convective_fraction = q_convective / (cooling_total + 1e-8)
+
+        # Physics residual: imbalance in heat equation
+        heating_total = q_solar + q_joule
+        physics_residual = torch.abs(cooling_total - heating_total)
+
+        return {
+            'q_convective': q_convective,             # (N,) W/m
+            'q_radiative': q_radiative,               # (N,) W/m
+            'q_solar': q_solar,                       # (N,) W/m
+            'q_joule': q_joule,                       # (N,) W/m
+            'binding_constraint': binding,             # (N,) 0=wind, 1=radiation
+            'physics_residual': physics_residual,      # (N,) W/m
+            'convective_fraction': convective_fraction, # (N,) dimensionless
+            'cooling_total': cooling_total,            # (N,) W/m
+            'heating_total': heating_total,            # (N,) W/m
+        }
 
     def forward(self, x, weather_dict):
         """
@@ -271,13 +374,14 @@ class InvariantPIKANV2(nn.Module):
         T_pred = predictions[:, 0]
         I_pred = predictions[:, 1]
 
-        # Physics residual
-        physics_residual = self.compute_physics_residual(T_pred, I_pred, weather_dict)
+        # Per-sample physics residual
+        physics_residual_per_sample = self.compute_physics_residual(T_pred, I_pred, weather_dict)
 
         return {
             'temperature': T_pred,
             'ampacity': I_pred,
-            'physics_residual': physics_residual,
+            'physics_residual': physics_residual_per_sample.mean(),  # scalar for loss
+            'physics_residual_per_sample': physics_residual_per_sample,  # (batch,) for audit
             'embeddings': h,
             'physics_params': self.get_physics_params()
         }
